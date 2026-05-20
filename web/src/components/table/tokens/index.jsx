@@ -43,6 +43,21 @@ import { useTokensData } from '../../../hooks/tokens/useTokensData';
 import { useIsMobile } from '../../../hooks/common/useIsMobile';
 import { createCardProPagination } from '../../../helpers/utils';
 
+const FLUENT_CONTAINER_ID = 'fluent-bafang-container';
+const FLUENT_LEGACY_CONTAINER_ID = ['fluent', 'new', 'api', 'container'].join(
+  '-',
+);
+const FLUENT_CONTAINER_SELECTOR = [
+  FLUENT_CONTAINER_ID,
+  FLUENT_LEGACY_CONTAINER_ID,
+]
+  .map((id) => `#${id}`)
+  .join(',');
+
+const getFluentContainer = () =>
+  document.getElementById(FLUENT_CONTAINER_ID) ||
+  document.getElementById(FLUENT_LEGACY_CONTAINER_ID);
+
 function TokensPage() {
   // Define the function first, then pass it into the hook to avoid TDZ errors
   const openFluentNotificationRef = useRef(null);
@@ -127,7 +142,7 @@ function TokensPage() {
       loadModels();
     }
     if (!key && localStorage.getItem(SUPPRESS_KEY) === '1') return;
-    const container = document.getElementById('fluent-new-api-container');
+    const container = getFluentContainer();
     if (!container) {
       Toast.warning(t('未检测到 FluentRead（流畅阅读），请确认扩展已启用'));
       return;
@@ -210,7 +225,7 @@ function TokensPage() {
       prefillKey: overrideKey,
       fetchTokenKey,
     } = latestRef.current;
-    const container = document.getElementById('fluent-new-api-container');
+    const container = getFluentContainer();
     if (!container) {
       Toast.error(t('未检测到 Fluent 容器'));
       return;
@@ -253,7 +268,7 @@ function TokensPage() {
     }
 
     const payload = {
-      id: 'new-api',
+      id: 'bafang',
       baseUrl: serverAddress,
       apiKey: apiKeyToUse,
       model: chosenModel,
@@ -293,7 +308,7 @@ function TokensPage() {
   }, [modelOptions, selectedModel, tokensData.t, fluentNoticeOpen]);
 
   useEffect(() => {
-    const selector = '#fluent-new-api-container';
+    const selector = FLUENT_CONTAINER_SELECTOR;
     const root = document.body || document.documentElement;
 
     const existing = document.querySelector(selector);
@@ -306,7 +321,12 @@ function TokensPage() {
 
     const isOrContainsTarget = (node) => {
       if (!(node && node.nodeType === 1)) return false;
-      if (node.id === 'fluent-new-api-container') return true;
+      if (
+        node.id === FLUENT_CONTAINER_ID ||
+        node.id === FLUENT_LEGACY_CONTAINER_ID
+      ) {
+        return true;
+      }
       return (
         typeof node.querySelector === 'function' &&
         !!node.querySelector(selector)

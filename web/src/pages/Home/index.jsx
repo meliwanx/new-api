@@ -194,7 +194,7 @@ const Home = () => {
     configuredServerAddress && !isLocalAddress(configuredServerAddress)
       ? configuredServerAddress
       : browserOrigin || configuredServerAddress;
-  const systemName = statusState?.status?.system_name || 'New API';
+  const systemName = statusState?.status?.system_name || '八方';
   void systemName;
   const isChinese = (i18n.language || 'zh').startsWith('zh');
 

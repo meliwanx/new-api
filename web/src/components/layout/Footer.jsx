@@ -62,29 +62,14 @@ const FooterBar = () => {
                   {t('关于我们')}
                 </p>
                 <div className='flex flex-col gap-4'>
-                  <a
-                    href='https://docs.newapi.pro/wiki/project-introduction/'
-                    target='_blank'
-                    rel='noopener noreferrer'
-                    className='!text-semi-color-text-1'
-                  >
-                    {t('关于项目')}
+                  <a href='/about' className='!text-semi-color-text-1'>
+                    {t('服务介绍')}
                   </a>
-                  <a
-                    href='https://docs.newapi.pro/support/community-interaction/'
-                    target='_blank'
-                    rel='noopener noreferrer'
-                    className='!text-semi-color-text-1'
-                  >
-                    {t('联系我们')}
+                  <a href='/console' className='!text-semi-color-text-1'>
+                    {t('控制台')}
                   </a>
-                  <a
-                    href='https://docs.newapi.pro/wiki/features-introduction/'
-                    target='_blank'
-                    rel='noopener noreferrer'
-                    className='!text-semi-color-text-1'
-                  >
-                    {t('功能特性')}
+                  <a href='/pricing' className='!text-semi-color-text-1'>
+                    {t('模型价格')}
                   </a>
                 </div>
               </div>
@@ -94,94 +79,49 @@ const FooterBar = () => {
                   {t('文档')}
                 </p>
                 <div className='flex flex-col gap-4'>
-                  <a
-                    href='https://docs.newapi.pro/getting-started/'
-                    target='_blank'
-                    rel='noopener noreferrer'
-                    className='!text-semi-color-text-1'
-                  >
+                  <a href='/console' className='!text-semi-color-text-1'>
                     {t('快速开始')}
                   </a>
-                  <a
-                    href='https://docs.newapi.pro/installation/'
-                    target='_blank'
-                    rel='noopener noreferrer'
-                    className='!text-semi-color-text-1'
-                  >
-                    {t('安装指南')}
+                  <a href='/console/token' className='!text-semi-color-text-1'>
+                    {t('令牌管理')}
                   </a>
-                  <a
-                    href='https://docs.newapi.pro/api/'
-                    target='_blank'
-                    rel='noopener noreferrer'
-                    className='!text-semi-color-text-1'
-                  >
-                    {t('API 文档')}
+                  <a href='/console/models' className='!text-semi-color-text-1'>
+                    {t('模型广场')}
                   </a>
                 </div>
               </div>
 
               <div className='text-left'>
                 <p className='!text-semi-color-text-0 font-semibold mb-5'>
-                  {t('相关项目')}
+                  {t('服务能力')}
                 </p>
                 <div className='flex flex-col gap-4'>
-                  <a
-                    href='https://github.com/songquanpeng/one-api'
-                    target='_blank'
-                    rel='noopener noreferrer'
-                    className='!text-semi-color-text-1'
-                  >
-                    One API
-                  </a>
-                  <a
-                    href='https://github.com/novicezk/midjourney-proxy'
-                    target='_blank'
-                    rel='noopener noreferrer'
-                    className='!text-semi-color-text-1'
-                  >
-                    Midjourney-Proxy
-                  </a>
-                  <a
-                    href='https://github.com/Calcium-Ion/neko-api-key-tool'
-                    target='_blank'
-                    rel='noopener noreferrer'
-                    className='!text-semi-color-text-1'
-                  >
-                    neko-api-key-tool
-                  </a>
+                  <span className='!text-semi-color-text-1'>
+                    {t('统一中转地址')}
+                  </span>
+                  <span className='!text-semi-color-text-1'>
+                    {t('按量余额计费')}
+                  </span>
+                  <span className='!text-semi-color-text-1'>
+                    {t('线路自动切换')}
+                  </span>
                 </div>
               </div>
 
               <div className='text-left'>
                 <p className='!text-semi-color-text-0 font-semibold mb-5'>
-                  {t('友情链接')}
+                  {t('适用场景')}
                 </p>
                 <div className='flex flex-col gap-4'>
-                  <a
-                    href='https://github.com/Calcium-Ion/new-api-horizon'
-                    target='_blank'
-                    rel='noopener noreferrer'
-                    className='!text-semi-color-text-1'
-                  >
-                    new-api-horizon
-                  </a>
-                  <a
-                    href='https://github.com/coaidev/coai'
-                    target='_blank'
-                    rel='noopener noreferrer'
-                    className='!text-semi-color-text-1'
-                  >
-                    CoAI
-                  </a>
-                  <a
-                    href='https://www.gpt-load.com/'
-                    target='_blank'
-                    rel='noopener noreferrer'
-                    className='!text-semi-color-text-1'
-                  >
-                    GPT-Load
-                  </a>
+                  <span className='!text-semi-color-text-1'>
+                    {t('个人工具')}
+                  </span>
+                  <span className='!text-semi-color-text-1'>
+                    {t('生产业务')}
+                  </span>
+                  <span className='!text-semi-color-text-1'>
+                    {t('团队协作')}
+                  </span>
                 </div>
               </div>
             </div>
@@ -199,14 +139,7 @@ const FooterBar = () => {
             <span className='!text-semi-color-text-1'>
               {t('设计与开发由')}{' '}
             </span>
-            <a
-              href='https://github.com/QuantumNous/new-api'
-              target='_blank'
-              rel='noopener noreferrer'
-              className='!text-semi-color-primary font-medium'
-            >
-              八方
-            </a>
+            <span className='!text-semi-color-primary font-medium'>八方</span>
           </div>
         </div>
       </footer>
@@ -231,14 +164,7 @@ const FooterBar = () => {
               <span className='!text-semi-color-text-1'>
                 {t('设计与开发由')}{' '}
               </span>
-              <a
-                href='https://github.com/QuantumNous/new-api'
-                target='_blank'
-                rel='noopener noreferrer'
-                className='!text-semi-color-primary font-medium'
-              >
-                八方
-              </a>
+              <span className='!text-semi-color-primary font-medium'>八方</span>
             </div>
           </div>
         </footer>

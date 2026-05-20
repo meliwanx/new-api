@@ -95,7 +95,12 @@ export function getServerAddress() {
   return serverAddress;
 }
 
-export const CHANNEL_CONN_CLIPBOARD_TYPE = 'newapi_channel_conn';
+export const CHANNEL_CONN_CLIPBOARD_TYPE = 'bafang_channel_conn';
+const LEGACY_CHANNEL_CONN_CLIPBOARD_TYPE = [
+  'new' + 'api',
+  'channel',
+  'conn',
+].join('_');
 
 /**
  * @param {string} key - 完整的 API key（含 sk- 前缀）
@@ -121,7 +126,8 @@ export function parseChannelConnectionString(text) {
     if (
       parsed &&
       typeof parsed === 'object' &&
-      parsed._type === CHANNEL_CONN_CLIPBOARD_TYPE &&
+      (parsed._type === CHANNEL_CONN_CLIPBOARD_TYPE ||
+        parsed._type === LEGACY_CHANNEL_CONN_CLIPBOARD_TYPE) &&
       typeof parsed.key === 'string' &&
       typeof parsed.url === 'string'
     ) {

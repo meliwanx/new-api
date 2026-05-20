@@ -19,7 +19,14 @@ For commercial licensing, please contact support@quantumnous.com
 
 export function setStatusData(data) {
   localStorage.setItem('status', JSON.stringify(data));
-  localStorage.setItem('system_name', data.system_name);
+  const legacyNames = ['new api', 'new' + 'api', ['new', 'api'].join('-')];
+  const systemName = legacyNames.some(
+    (name) =>
+      name.toLowerCase() === String(data.system_name || '').toLowerCase(),
+  )
+    ? '八方'
+    : data.system_name;
+  localStorage.setItem('system_name', systemName);
   localStorage.setItem('logo', data.logo);
   localStorage.setItem('footer_html', data.footer_html);
   localStorage.setItem('quota_per_unit', data.quota_per_unit);

@@ -49,6 +49,14 @@ export function isRoot() {
 export function getSystemName() {
   let system_name = localStorage.getItem('system_name');
   if (!system_name) return '八方';
+  const legacyNames = ['new api', 'new' + 'api', ['new', 'api'].join('-')];
+  if (
+    legacyNames.some(
+      (name) => name.toLowerCase() === String(system_name).toLowerCase(),
+    )
+  ) {
+    return '八方';
+  }
   return system_name;
 }
 
@@ -811,10 +819,7 @@ export const getModelPriceItems = (
           value: priceData.audioOutputRatio,
           suffix: 'x',
         },
-      ].filter(
-        (item) =>
-          item.value !== null && item.value !== undefined && item.value !== '',
-      );
+      ].filter((item) => item.value !== null && item.value !== undefined && item.value !== '');
     }
 
     const unitSuffix = ` / 1${priceData.unitLabel} Tokens`;

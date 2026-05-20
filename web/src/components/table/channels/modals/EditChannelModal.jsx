@@ -3306,7 +3306,7 @@ const EditChannelModal = (props) => {
                           <Banner
                             type='warning'
                             description={t(
-                              '如果你对接的是上游One API或者New API等转发项目，请使用OpenAI类型，不要使用此类型，除非你知道你在做什么。',
+                              '如果你对接的是上游转发项目，请使用OpenAI类型，不要使用此类型，除非你知道你在做什么。',
                             )}
                             className='!rounded-lg'
                           />
@@ -3355,7 +3355,7 @@ const EditChannelModal = (props) => {
                               showClear
                               disabled={isIonetLocked}
                               extraText={t(
-                                '对于官方渠道，new-api已经内置地址，除非是第三方代理站点或者Azure的特殊接入地址，否则不需要填写',
+                                '对于官方渠道，系统已经内置地址，除非是第三方代理站点或者Azure的特殊接入地址，否则不需要填写',
                               )}
                             />
                           </div>
