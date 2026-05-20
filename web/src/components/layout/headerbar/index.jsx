@@ -76,8 +76,9 @@ const HeaderBar = ({ onMobileMenuToggle, drawerOpen }) => {
           },
         ]
       : []),
-    { text: t('定价'), itemKey: 'pricing', href: '#pricing' },
-    { text: t('用户评价'), itemKey: 'reviews', href: '#reviews' },
+    { text: t('能力说明'), itemKey: 'capabilities', href: '#capabilities' },
+    { text: t('接入流程'), itemKey: 'workflow', href: '#workflow' },
+    { text: t('适用场景'), itemKey: 'use-cases', href: '#use-cases' },
     { text: t('常见问题'), itemKey: 'faq', href: '#faq' },
     { text: t('联系我们'), itemKey: 'contact', href: '#contact' },
   ];

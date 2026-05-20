@@ -17,24 +17,27 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 
-import React, { useContext, useEffect, useMemo, useState } from 'react';
-import { Button, Input, Typography } from '@douyinfe/semi-ui';
+import React, { useContext, useEffect, useState } from 'react';
+import { Button, Typography } from '@douyinfe/semi-ui';
 import { Link } from 'react-router-dom';
 import { marked } from 'marked';
 import { useTranslation } from 'react-i18next';
 import {
-  ArrowRight,
   BookOpen,
-  CheckCircle2,
   Code2,
-  Copy as CopyIcon,
-  MessageSquareQuote,
+  Gauge,
+  GitBranch,
+  KeyRound,
+  Layers3,
+  LockKeyhole,
+  Network,
+  Route,
+  ServerCog,
   Shield,
   Sparkles,
-  WalletCards,
   Zap,
 } from 'lucide-react';
-import { API, copy, showError, showSuccess } from '../../helpers';
+import { API, showError } from '../../helpers';
 import { StatusContext } from '../../context/Status';
 import { useActualTheme } from '../../context/Theme';
 import { useIsMobile } from '../../hooks/common/useIsMobile';
@@ -53,123 +56,131 @@ const normalizeContent = (value) => {
 
 const isUrlContent = (value) => /^https?:\/\//i.test(value);
 
-const isLocalAddress = (value) =>
-  /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?/i.test(value || '');
-
 const heroCards = [
   {
     icon: Shield,
-    title: '稳定中转',
-    desc: '统一管理模型线路、密钥和余额，让业务调用保持稳定。',
+    title: '模型中转服务',
+    desc: '把不同模型能力收敛到一个可管理的调用入口，降低业务接入复杂度。',
   },
   {
     icon: Zap,
-    title: '快速接入',
-    desc: '兼容常用 API 格式，替换 Base URL 后即可开始调用。',
+    title: '兼容常用接口',
+    desc: '按开发者熟悉的请求格式接入，减少客户端与服务端改造成本。',
   },
   {
-    icon: Code2,
-    title: '专业服务',
-    desc: '提供接入建议、使用协助和问题排查，适合长期业务使用。',
+    icon: ServerCog,
+    title: '运维支持',
+    desc: '提供线路配置、调用问题排查和使用建议，适合长期业务接入。',
   },
 ];
 
 const trustMetrics = [
   { value: '多模型', label: '主流模型接入' },
-  { value: '99.9%', label: '服务稳定目标' },
-  { value: '分钟级', label: '完成接入配置' },
-  { value: '1v1', label: '专属服务支持' },
+  { value: '兼容', label: '常用 API 格式' },
+  { value: '可控', label: '密钥与用量管理' },
+  { value: '支持', label: '接入与问题排查' },
 ];
 
-const subscriptionPlans = [
+const capabilityCards = [
   {
-    name: 'Starter Plan',
-    audience: '个人测试与轻量应用',
-    price: '¥50',
-    period: '起充',
-    items: ['按量余额消费', '共享中转线路', '兼容 /v1 接口'],
+    icon: Network,
+    title: '模型路由与接入',
+    desc: '将不同模型供应方的调用方式收敛到平台侧，业务只需要维护自己的模型调用逻辑。',
+    points: ['减少多供应方配置', '按模型能力选择调用', '适配常见客户端'],
   },
   {
-    name: 'Standard Plan',
-    audience: '日常开发与小型产品',
-    price: '¥399',
-    period: '/月',
-    items: ['更高并发额度', '用量明细统计', '模型调用建议'],
+    icon: KeyRound,
+    title: '密钥与项目隔离',
+    desc: '为不同应用、成员或环境创建独立密钥，便于控制风险、拆分项目和定位问题。',
+    points: ['独立密钥管理', '项目级隔离', '调用记录可追踪'],
   },
   {
-    name: 'Premium Plan',
-    audience: '生产业务与团队使用',
-    price: '¥899',
-    period: '/月',
-    recommended: true,
-    items: ['线路优先保障', '多项目密钥管理', '异常请求协助排查'],
+    icon: Gauge,
+    title: '用量与成本可见',
+    desc: '提供调用记录、余额消耗和模型使用情况，帮助团队更清楚地看见实际消耗。',
+    points: ['调用明细查看', '异常消耗排查', '团队对账更清楚'],
   },
   {
-    name: 'Professional Plan',
-    audience: '高频调用与企业项目',
-    price: '定制',
-    period: '',
-    items: ['专属接入方案', '团队额度管理', '合同与结算支持'],
+    icon: LockKeyhole,
+    title: '稳定与安全控制',
+    desc: '围绕生产调用需要，提供账号安全、访问控制和服务侧排查能力。',
+    points: ['账号安全机制', '权限与访问控制', '服务侧协助定位'],
   },
 ];
 
-const flexibleAmounts = [
-  { pay: '¥50', get: '$50' },
-  { pay: '¥100', get: '$100' },
-  { pay: '¥500', get: '$500' },
+const workflowSteps = [
+  {
+    label: '01',
+    title: '创建账号与项目',
+    desc: '进入控制台后为你的应用创建独立项目，把测试、生产或不同业务拆开管理。',
+  },
+  {
+    label: '02',
+    title: '生成调用密钥',
+    desc: '为服务端、脚本或团队成员生成独立密钥，必要时可以单独停用或轮换。',
+  },
+  {
+    label: '03',
+    title: '调整客户端配置',
+    desc: '在现有代码里替换模型调用配置，并按目标模型名称发起请求。',
+  },
+  {
+    label: '04',
+    title: '查看调用与消耗',
+    desc: '上线后在控制台查看请求记录、消耗情况和异常调用，方便持续优化。',
+  },
 ];
 
-const testimonials = [
+const useCases = [
   {
-    quote: '把多个模型能力收敛到同一个中转地址后，业务侧配置简单很多。',
-    name: '产品负责人',
-    role: 'SaaS 团队',
-    avatar:
-      'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=120&h=120&fit=crop&crop=face',
+    icon: Code2,
+    title: 'AI 应用后端',
+    desc: '聊天、写作、搜索、客服、数据分析等产品，可以通过平台接入多个模型能力。',
   },
   {
-    quote: '按量余额和密钥隔离适合多项目使用，成本也更容易对账。',
-    name: '后端工程师',
-    role: '独立开发者',
-    avatar:
-      'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=120&h=120&fit=crop&crop=face',
+    icon: GitBranch,
+    title: '团队研发环境',
+    desc: '为测试、预发、生产环境拆分密钥，让不同环境的调用记录和消耗更清晰。',
   },
   {
-    quote: '我们重点需要稳定的模型中转和问题响应，这个服务很符合团队协作场景。',
-    name: '技术负责人',
-    role: '企业研发团队',
-    avatar:
-      'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=120&h=120&fit=crop&crop=face',
+    icon: Layers3,
+    title: '多模型能力整合',
+    desc: '同一业务中需要不同模型能力时，可以减少重复接入、重复维护和重复排查。',
   },
   {
-    quote: '统一入口让客户端和服务端都能复用同一套调用方式，迭代效率更高。',
-    name: '全栈开发者',
-    role: '工具产品团队',
-    avatar:
-      'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&h=120&fit=crop&crop=face',
+    icon: Route,
+    title: '自动化与内部工具',
+    desc: '脚本、工作流、内部管理工具可以用更简单的方式接入大模型调用能力。',
   },
+];
+
+const operationRows = [
+  ['接入复杂度', '业务侧只维护一种主要调用方式，供应方差异由平台侧处理。'],
+  ['调用管理', '密钥、项目、记录和消耗集中到控制台，便于团队协作。'],
+  ['问题定位', '从请求记录、模型选择、密钥状态等维度排查失败原因。'],
+  ['长期维护', '新增模型或调整线路时，减少业务代码反复改造。'],
 ];
 
 const faqs = [
   {
     question: '八方是什么服务？',
     answer:
-      '八方是大模型中转站服务，面向个人、团队和企业提供统一模型调用入口、余额计费、密钥管理和接入支持。',
+      '八方是大模型中转站服务，面向个人开发者、团队和企业提供模型调用接入、密钥管理、用量记录和服务支持。',
   },
   {
     question: '接入方式复杂吗？',
     answer:
-      '不复杂。创建账号和密钥后，把客户端或服务端里的 Base URL 改成八方提供的中转地址，并按模型名称发起请求即可。',
+      '不复杂。创建账号和密钥后，在现有客户端或服务端里调整模型调用配置，并按目标模型名称发起请求即可。',
   },
   {
-    question: '如何管理不同项目的调用？',
+    question: '余额消耗怎么理解？',
     answer:
-      '可以为不同项目创建独立密钥，并设置额度、过期时间和使用范围，方便隔离风险和核算成本。',
+      '不同模型、不同能力和不同计费规则会对应不同消耗比例，实际以控制台展示和平台说明为准，不按固定的人民币兑美元比例计算。',
   },
   {
     question: '是否适合生产业务？',
     answer:
-      '适合需要稳定模型调用、清晰账单和服务支持的业务场景。高频或团队使用可以选择更高等级服务方案。',
+      '适合需要稳定模型调用、清晰用量记录和接入支持的业务场景。生产接入前建议先完成小流量测试和异常处理配置。',
   },
 ];
 
@@ -183,21 +194,9 @@ const Home = () => {
   const isMobile = useIsMobile();
 
   const docsLink = statusState?.status?.docs_link || '';
-  const configuredServerAddress = statusState?.status?.server_address || '';
-  const browserOrigin =
-    typeof window !== 'undefined' ? window.location.origin : '';
-  const serverAddress =
-    configuredServerAddress && !isLocalAddress(configuredServerAddress)
-      ? configuredServerAddress
-      : browserOrigin || configuredServerAddress;
   const systemName = statusState?.status?.system_name || '八方';
   void systemName;
   const isChinese = (i18n.language || 'zh').startsWith('zh');
-
-  const apiBaseUrl = useMemo(
-    () => `${serverAddress || 'https://api.example.com'}/v1`,
-    [serverAddress],
-  );
 
   const displayHomePageContent = async () => {
     try {
@@ -240,13 +239,6 @@ const Home = () => {
       }
     } finally {
       setHomePageContentLoaded(true);
-    }
-  };
-
-  const handleCopyBaseURL = async () => {
-    const ok = await copy(apiBaseUrl);
-    if (ok) {
-      showSuccess(t('已复制到剪切板'));
     }
   };
 
@@ -339,7 +331,7 @@ const Home = () => {
               </span>
             </Title>
             <Text className='aigo-hero-text'>
-              <span>{t('我们把模型接入、额度计费、密钥管理')}</span>
+              <span>{t('我们把模型接入、密钥管理、用量记录')}</span>
               <span>{t('与服务支持整合到一个中转平台，')}</span>
               <span>{t('帮助你专注自己的产品，')}</span>
               <span>{t('而不是反复维护不同模型渠道。')}</span>
@@ -365,21 +357,6 @@ const Home = () => {
                   {t('查看文档')}
                 </Button>
               )}
-            </div>
-            <div className='aigo-endpoint-card'>
-              <span>{t('统一中转地址')}</span>
-              <Input
-                readOnly
-                value={apiBaseUrl}
-                suffix={
-                  <Button
-                    type='tertiary'
-                    icon={<CopyIcon size={16} />}
-                    onClick={handleCopyBaseURL}
-                    aria-label={t('复制')}
-                  />
-                }
-              />
             </div>
           </div>
 
@@ -412,110 +389,132 @@ const Home = () => {
         </div>
       </section>
 
-      <section id='pricing' className='aigo-section aigo-pricing'>
+      <section id='capabilities' className='aigo-section aigo-capabilities'>
         <div className='aigo-section-heading'>
-          <Title heading={2}>{t('选择适合您的方案')}</Title>
+          <Text className='aigo-pill-label'>{t('能力说明')}</Text>
+          <Title heading={2}>{t('中转站应该解决的核心问题')}</Title>
           <Text>
             {t(
-              '按量使用主流大模型能力，所有方案都包含账号安全、用量记录和基础服务支持。',
+              '我们不是展示一个开源平台，而是提供能被业务直接使用的大模型中转服务。',
             )}
           </Text>
         </div>
-        <div className='aigo-plan-kicker'>
-          <WalletCards size={20} />
-          <span>{t('套餐订阅')}</span>
-        </div>
-        <div className='aigo-plan-grid'>
-          {subscriptionPlans.map((plan) => (
-            <article
-              className={`aigo-plan-card ${plan.recommended ? 'is-recommended' : ''}`}
-              key={plan.name}
-            >
-              {plan.recommended && (
-                <div className='aigo-recommended'>{t('推荐选择')}</div>
-              )}
-              <div className='aigo-plan-head'>
-                <h3>{plan.name}</h3>
-                <p>{t(plan.audience)}</p>
-              </div>
-              <div className='aigo-price'>
-                <strong>{plan.price}</strong>
-                {plan.period && <span>{plan.period}</span>}
-              </div>
-              <ul>
-                {plan.items.map((item) => (
-                  <li key={item}>
-                    <CheckCircle2 size={18} />
-                    <span>{t(item)}</span>
-                  </li>
-                ))}
-              </ul>
-              <Link to='/login'>
-                <Button theme='solid' type='primary' block>
-                  {t('登录订阅')}
-                </Button>
-              </Link>
-            </article>
-          ))}
-        </div>
-
-        <div className='aigo-flexible'>
-          <div>
-            <Text className='aigo-pill-label'>{t('灵活额度')}</Text>
-            <Title heading={3}>{t('按量扣费，额度长期有效')}</Title>
-            <p>
-              {t(
-                '适合测试、临时扩容和多模型混合调用。充值后即可在控制台创建密钥并按调用量消费。',
-              )}
-            </p>
-          </div>
-          <div className='aigo-credit-box'>
-            {flexibleAmounts.map((item) => (
-              <div className='aigo-credit-row' key={item.pay}>
-                <span>
-                  {t('支付')}
-                  <strong>{item.pay}</strong>
-                </span>
-                <ArrowRight size={18} />
-                <span>
-                  {t('获得')}
-                  <strong>{item.get}</strong>
-                </span>
-              </div>
-            ))}
-            <Link to='/console/topup'>
-              <Button theme='solid' type='primary' block>
-                {t('立即购买')}
-              </Button>
-            </Link>
-          </div>
+        <div className='aigo-pillar-grid'>
+          {capabilityCards.map((item) => {
+            const ItemIcon = item.icon;
+            return (
+              <article className='aigo-pillar-card' key={item.title}>
+                <ItemIcon size={24} />
+                <h3>{t(item.title)}</h3>
+                <p>{t(item.desc)}</p>
+                <ul>
+                  {item.points.map((point) => (
+                    <li key={point}>{t(point)}</li>
+                  ))}
+                </ul>
+              </article>
+            );
+          })}
         </div>
       </section>
 
-      <section id='reviews' className='aigo-section aigo-reviews'>
+      <section id='workflow' className='aigo-section aigo-workflow'>
         <div className='aigo-section-heading'>
-          <Text className='aigo-pill-label'>{t('用户评价')}</Text>
-          <Title heading={2}>{t('用户怎么说')}</Title>
+          <Text className='aigo-pill-label'>{t('接入流程')}</Text>
+          <Title heading={2}>{t('从创建密钥到业务上线')}</Title>
           <Text>
             {t(
-              '从个人项目到团队产品，八方为不同业务提供统一、稳定、可管理的大模型中转服务。',
+              '保留你现有的产品逻辑，只把模型调用配置接到八方提供的服务入口。',
             )}
           </Text>
         </div>
-        <div className='aigo-testimonial-grid'>
-          {testimonials.concat(testimonials).map((item, index) => (
-            <article className='aigo-testimonial' key={`${item.name}-${index}`}>
-              <MessageSquareQuote size={22} />
-              <p>{t(item.quote)}</p>
-              <div>
-                <img src={item.avatar} alt={item.name} />
-                <span>
-                  <strong>{t(item.name)}</strong>
-                  <em>{t(item.role)}</em>
-                </span>
-              </div>
+        <div className='aigo-workflow-grid'>
+          {workflowSteps.map((item) => (
+            <article className='aigo-workflow-card' key={item.label}>
+              <span>{item.label}</span>
+              <h3>{t(item.title)}</h3>
+              <p>{t(item.desc)}</p>
             </article>
           ))}
+        </div>
+        <div className='aigo-intake-panel'>
+          <div>
+            <Text className='aigo-pill-label'>{t('开发者接入')}</Text>
+            <Title heading={3}>{t('把模型调用从业务代码里解耦出来')}</Title>
+            <p>
+              {t(
+                '你可以把八方作为模型调用层，业务系统负责产品逻辑，模型供应、密钥和调用记录交给平台统一管理。',
+              )}
+            </p>
+          </div>
+          <pre>
+            <code>{`client = createAIClient({
+  endpoint: "控制台中的接入入口",
+  apiKey: process.env.MODEL_API_KEY
+})
+
+response = await client.chat({
+  model: "目标模型名称",
+  messages: userMessages
+})`}</code>
+          </pre>
+        </div>
+      </section>
+
+      <section id='use-cases' className='aigo-section aigo-scenarios'>
+        <div className='aigo-section-heading'>
+          <Text className='aigo-pill-label'>{t('适用场景')}</Text>
+          <Title heading={2}>{t('更适合已经要接入模型的业务')}</Title>
+          <Text>
+            {t(
+              '无论是个人项目还是团队产品，重点都是把模型调用稳定、可查、可维护地接入到业务里。',
+            )}
+          </Text>
+        </div>
+        <div className='aigo-scenario-grid'>
+          {useCases.map((item) => {
+            const ItemIcon = item.icon;
+            return (
+              <article className='aigo-scenario-card' key={item.title}>
+                <ItemIcon size={24} />
+                <h3>{t(item.title)}</h3>
+                <p>{t(item.desc)}</p>
+              </article>
+            );
+          })}
+        </div>
+      </section>
+
+      <section id='operations' className='aigo-section aigo-operations'>
+        <div className='aigo-ops-panel'>
+          <div>
+            <Text className='aigo-pill-label'>{t('运维保障')}</Text>
+            <Title heading={2}>{t('让模型调用更容易维护')}</Title>
+            <p>
+              {t(
+                '中转服务的价值不是堆砌宣传，而是让接入、管理、排查和后续维护都变得更清楚。',
+              )}
+            </p>
+            <Link to='/login'>
+              <Button
+                theme='solid'
+                type='primary'
+                size='large'
+                icon={<Sparkles size={18} />}
+                iconPosition='left'
+              >
+                {t('进入控制台')}
+              </Button>
+            </Link>
+          </div>
+          <div className='aigo-ops-list'>
+            {operationRows.map(([label, desc]) => (
+              <div className='aigo-ops-row' key={label}>
+                <span>{t(label)}</span>
+                <p>{t(desc)}</p>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
@@ -549,18 +548,19 @@ const Home = () => {
           <div>
             <h2>八方</h2>
             <p>{t('面向业务的大模型中转站服务')}</p>
-            <small>{t('模型接入、余额计费、密钥管理与服务支持')}</small>
+            <small>{t('模型接入、密钥管理、用量记录与服务支持')}</small>
           </div>
           <div>
             <h3>{t('产品')}</h3>
-            <a href='#pricing'>{t('定价')}</a>
+            <a href='#capabilities'>{t('能力说明')}</a>
+            <a href='#workflow'>{t('接入流程')}</a>
             <a href={docsLink || '/console'}>{t('文档')}</a>
             <a href='#faq'>{t('常见问题')}</a>
           </div>
           <div>
             <h3>{t('服务')}</h3>
             <Link to='/console'>{t('控制台')}</Link>
-            <Link to='/pricing'>{t('模型广场')}</Link>
+            <a href='#use-cases'>{t('适用场景')}</a>
             <Link to='/about'>{t('联系我们')}</Link>
           </div>
         </div>
