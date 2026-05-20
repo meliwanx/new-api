@@ -44,6 +44,7 @@ const HeaderBar = ({ onMobileMenuToggle, drawerOpen }) => {
     isDemoSiteMode,
     isConsoleRoute,
     theme,
+    location,
     headerNavModules,
     pricingRequireAuth,
     logout,
@@ -63,9 +64,38 @@ const HeaderBar = ({ onMobileMenuToggle, drawerOpen }) => {
   } = useNotifications(statusState);
 
   const { mainNavLinks } = useNavigation(t, docsLink, headerNavModules);
+  const isLandingRoute = location.pathname === '/';
+  const landingNavLinks = [
+    ...(docsLink
+      ? [
+          {
+            text: t('文档'),
+            itemKey: 'docs',
+            href: docsLink,
+            targetBlank: true,
+          },
+        ]
+      : []),
+    { text: t('定价'), itemKey: 'pricing', href: '#pricing' },
+    { text: t('用户评价'), itemKey: 'reviews', href: '#reviews' },
+    { text: t('常见问题'), itemKey: 'faq', href: '#faq' },
+    { text: t('联系我们'), itemKey: 'contact', href: '#contact' },
+  ];
+  const visibleNavLinks =
+    isLandingRoute && isMobile
+      ? []
+      : isLandingRoute
+        ? landingNavLinks
+        : mainNavLinks;
 
   return (
-    <header className='text-semi-color-text-0 sticky top-0 z-50 transition-colors duration-300 bg-white/75 dark:bg-zinc-900/75 backdrop-blur-lg'>
+    <header
+      className={
+        isLandingRoute
+          ? 'landing-header text-semi-color-text-0'
+          : 'text-semi-color-text-0 sticky top-0 z-50 transition-colors duration-300 bg-white/75 dark:bg-zinc-900/75 backdrop-blur-lg'
+      }
+    >
       <NoticeModal
         visible={noticeVisible}
         onClose={handleNoticeClose}
@@ -74,8 +104,14 @@ const HeaderBar = ({ onMobileMenuToggle, drawerOpen }) => {
         unreadKeys={getUnreadKeys()}
       />
 
-      <div className='w-full px-2'>
-        <div className='flex items-center justify-between h-16'>
+      <div className={isLandingRoute ? 'landing-header-shell' : 'w-full px-2'}>
+        <div
+          className={
+            isLandingRoute
+              ? 'landing-header-pill'
+              : 'flex items-center justify-between h-16'
+          }
+        >
           <div className='flex items-center'>
             <MobileMenuButton
               isConsoleRoute={isConsoleRoute}
@@ -100,7 +136,7 @@ const HeaderBar = ({ onMobileMenuToggle, drawerOpen }) => {
           </div>
 
           <Navigation
-            mainNavLinks={mainNavLinks}
+            mainNavLinks={visibleNavLinks}
             isMobile={isMobile}
             isLoading={isLoading}
             userState={userState}
@@ -119,6 +155,7 @@ const HeaderBar = ({ onMobileMenuToggle, drawerOpen }) => {
             isLoading={isLoading}
             isMobile={isMobile}
             isSelfUseMode={isSelfUseMode}
+            landingMode={isLandingRoute}
             logout={logout}
             navigate={navigate}
             t={t}

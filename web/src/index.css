@@ -25,8 +25,8 @@ body.sidebar-collapsed {
 }
 
 body {
-  font-family: Lato, 'Helvetica Neue', Arial, Helvetica, 'Microsoft YaHei',
-    sans-serif;
+  font-family:
+    Lato, 'Helvetica Neue', Arial, Helvetica, 'Microsoft YaHei', sans-serif;
   color: var(--semi-color-text-0);
   background-color: var(--semi-color-bg-0);
 }
@@ -49,8 +49,8 @@ body {
 }
 
 code {
-  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
-    monospace;
+  font-family:
+    source-code-pro, Menlo, Monaco, Consolas, 'Courier New', monospace;
 }
 
 /* ==================== 布局相关样式 ==================== */
@@ -367,7 +367,9 @@ code {
   line-height: 1;
   background-color: var(--semi-color-fill-0);
   color: var(--semi-color-text-2);
-  transition: background-color 0.15s ease, color 0.15s ease;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
 }
 
 .sbg-badge-active {
@@ -807,11 +809,8 @@ html:not(.dark) .blur-ball-teal {
   inset: 0;
   pointer-events: none;
   z-index: 0;
-  background: radial-gradient(
-      circle at -5% -10%,
-      var(--pb1) 0%,
-      transparent 60%
-    ),
+  background:
+    radial-gradient(circle at -5% -10%, var(--pb1) 0%, transparent 60%),
     radial-gradient(circle at 105% -10%, var(--pb2) 0%, transparent 55%),
     radial-gradient(circle at 5% 110%, var(--pb3) 0%, transparent 55%),
     radial-gradient(circle at 105% 110%, var(--pb4) 0%, transparent 50%);
@@ -844,7 +843,8 @@ html.dark .with-pastel-balls::before {
 .hero-green-theme {
   position: relative;
   overflow: hidden;
-  background: linear-gradient(135deg,
+  background: linear-gradient(
+    135deg,
     rgba(16, 185, 129, 0.05) 0%,
     rgba(34, 197, 94, 0.08) 50%,
     rgba(52, 211, 153, 0.05) 100%
@@ -859,16 +859,29 @@ html.dark .with-pastel-balls::before {
   right: 0;
   bottom: 0;
   background:
-    radial-gradient(circle at 20% 30%, rgba(16, 185, 129, 0.15) 0%, transparent 40%),
-    radial-gradient(circle at 80% 70%, rgba(34, 197, 94, 0.12) 0%, transparent 45%),
-    radial-gradient(circle at 50% 50%, rgba(52, 211, 153, 0.08) 0%, transparent 50%);
+    radial-gradient(
+      circle at 20% 30%,
+      rgba(16, 185, 129, 0.15) 0%,
+      transparent 40%
+    ),
+    radial-gradient(
+      circle at 80% 70%,
+      rgba(34, 197, 94, 0.12) 0%,
+      transparent 45%
+    ),
+    radial-gradient(
+      circle at 50% 50%,
+      rgba(52, 211, 153, 0.08) 0%,
+      transparent 50%
+    );
   pointer-events: none;
   z-index: 0;
   animation: green-pulse 8s ease-in-out infinite;
 }
 
 @keyframes green-pulse {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 1;
     transform: scale(1);
   }
@@ -880,7 +893,8 @@ html.dark .with-pastel-balls::before {
 
 /* 暗黑模式下调整绿色主题 */
 html.dark .hero-green-theme {
-  background: linear-gradient(135deg,
+  background: linear-gradient(
+    135deg,
     rgba(16, 185, 129, 0.1) 0%,
     rgba(34, 197, 94, 0.15) 50%,
     rgba(52, 211, 153, 0.1) 100%
@@ -889,17 +903,32 @@ html.dark .hero-green-theme {
 
 html.dark .hero-green-theme::before {
   background:
-    radial-gradient(circle at 20% 30%, rgba(16, 185, 129, 0.2) 0%, transparent 40%),
-    radial-gradient(circle at 80% 70%, rgba(34, 197, 94, 0.18) 0%, transparent 45%),
-    radial-gradient(circle at 50% 50%, rgba(52, 211, 153, 0.15) 0%, transparent 50%);
+    radial-gradient(
+      circle at 20% 30%,
+      rgba(16, 185, 129, 0.2) 0%,
+      transparent 40%
+    ),
+    radial-gradient(
+      circle at 80% 70%,
+      rgba(34, 197, 94, 0.18) 0%,
+      transparent 45%
+    ),
+    radial-gradient(
+      circle at 50% 50%,
+      rgba(52, 211, 153, 0.15) 0%,
+      transparent 50%
+    );
 }
 
 /* 绿色闪光文字 */
 .green-shine-text {
-  background: linear-gradient(90deg,
-    currentColor 0%, currentColor 40%,
+  background: linear-gradient(
+    90deg,
+    currentColor 0%,
+    currentColor 40%,
     #22c55e 50%,
-    currentColor 60%, currentColor 100%
+    currentColor 60%,
+    currentColor 100%
   );
   background-size: 200% 100%;
   -webkit-background-clip: text;
@@ -909,10 +938,13 @@ html.dark .hero-green-theme::before {
 }
 
 html.dark .green-shine-text {
-  background: linear-gradient(90deg,
-    currentColor 0%, currentColor 40%,
+  background: linear-gradient(
+    90deg,
+    currentColor 0%,
+    currentColor 40%,
     #4ade80 50%,
-    currentColor 60%, currentColor 100%
+    currentColor 60%,
+    currentColor 100%
   );
   background-size: 200% 100%;
 }
@@ -939,7 +971,8 @@ html.dark .feature-card {
   left: -100%;
   width: 100%;
   height: 100%;
-  background: linear-gradient(90deg,
+  background: linear-gradient(
+    90deg,
     transparent,
     rgba(16, 185, 129, 0.1),
     transparent
@@ -976,7 +1009,9 @@ html.dark .feature-card {
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.2);
   transform: translate(-50%, -50%);
-  transition: width 0.6s, height 0.6s;
+  transition:
+    width 0.6s,
+    height 0.6s;
 }
 
 .green-cta-button:hover::before {
@@ -1011,11 +1046,8 @@ html.dark .saas-home {
   min-height: calc(100vh - 56px);
   overflow: hidden;
   color: #f9fafb;
-  background: linear-gradient(
-      180deg,
-      rgba(17, 18, 24, 0.78),
-      rgba(17, 18, 24, 0.94)
-    ),
+  background:
+    linear-gradient(180deg, rgba(17, 18, 24, 0.78), rgba(17, 18, 24, 0.94)),
     linear-gradient(120deg, #111218 0%, #18201f 48%, #10141b 100%);
 }
 
@@ -1023,10 +1055,8 @@ html.dark .saas-home {
   position: absolute;
   inset: 0;
   opacity: 0.32;
-  background-image: linear-gradient(
-      rgba(255, 255, 255, 0.08) 1px,
-      transparent 1px
-    ),
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px),
     linear-gradient(90deg, rgba(255, 255, 255, 0.08) 1px, transparent 1px);
   background-size: 72px 72px;
   mask-image: linear-gradient(180deg, #000 0%, transparent 92%);
@@ -1654,8 +1684,8 @@ html.dark .service-plan-card li {
   padding: 18px;
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 8px;
-  background: linear-gradient(rgba(255, 255, 255, 0.06) 1px, transparent 1px),
-    #0d1118;
+  background:
+    linear-gradient(rgba(255, 255, 255, 0.06) 1px, transparent 1px), #0d1118;
   background-size: 100% 50px;
 }
 
@@ -1864,6 +1894,748 @@ html.dark .final-cta {
     grid-template-columns: 1fr;
     gap: 6px;
     padding: 12px;
+  }
+}
+
+/* ==================== AiGo 风格落地页 ==================== */
+.landing-header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  padding: 16px 16px 0;
+  background: transparent;
+}
+
+.landing-header-shell {
+  width: min(1120px, 100%);
+  margin: 0 auto;
+}
+
+.landing-header-pill {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 52px;
+  padding: 0 16px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  background: rgba(5, 6, 13, 0.76);
+  box-shadow: 0 18px 46px rgba(0, 0, 0, 0.28);
+  backdrop-filter: blur(14px);
+}
+
+.landing-header .semi-typography,
+.landing-header a {
+  color: rgba(255, 255, 255, 0.86) !important;
+}
+
+.landing-header a:hover {
+  color: #ffffff !important;
+}
+
+.landing-header .semi-button-primary {
+  background: #3b82f6;
+  border-color: #3b82f6;
+}
+
+.landing-action-buttons .semi-button {
+  border-radius: 999px !important;
+}
+
+.aigocode-home {
+  min-height: 100vh;
+  overflow-x: hidden;
+  color: #f8fafc;
+  background: #05060d;
+}
+
+.aigo-hero {
+  position: relative;
+  display: flex;
+  min-height: calc(100vh - 64px);
+  overflow: hidden;
+  background:
+    linear-gradient(180deg, rgba(5, 6, 13, 0.12), #05060d 92%),
+    linear-gradient(135deg, #05060d 0%, #090d1a 45%, #03040a 100%);
+}
+
+.aigo-hero-pattern {
+  position: absolute;
+  inset: 0;
+  opacity: 0.34;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.065) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.065) 1px, transparent 1px),
+    linear-gradient(120deg, rgba(59, 130, 246, 0.16), transparent 42%),
+    linear-gradient(240deg, rgba(231, 138, 83, 0.14), transparent 44%);
+  background-size:
+    64px 64px,
+    64px 64px,
+    100% 100%,
+    100% 100%;
+  mask-image: linear-gradient(180deg, #000 0%, transparent 94%);
+}
+
+.aigo-hero-inner {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  justify-content: center;
+  width: min(1120px, calc(100% - 48px));
+  margin: 0 auto;
+  padding: 96px 0 48px;
+  text-align: center;
+}
+
+.aigo-hero-copy {
+  width: 100%;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.aigo-brand-mark {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 24px;
+  color: rgba(255, 255, 255, 0.95);
+  font-size: clamp(34px, 6vw, 70px);
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: 0;
+}
+
+.aigo-brand-mark b {
+  color: #4ade80;
+  font-weight: 800;
+}
+
+.aigo-hero-title.semi-typography {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  color: transparent;
+  background: linear-gradient(120deg, #38bdf8, #3b82f6 48%, #f97316);
+  background-clip: text;
+  -webkit-background-clip: text;
+  font-size: clamp(42px, 7vw, 76px);
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: 0;
+  white-space: normal !important;
+  overflow-wrap: anywhere !important;
+  word-break: break-all !important;
+}
+
+.aigo-mobile-title-tail {
+  display: inline;
+}
+
+.aigo-hero-text.semi-typography {
+  display: block;
+  width: 100%;
+  max-width: 760px;
+  margin: 28px auto 0;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 18px;
+  line-height: 1.8;
+  letter-spacing: 0;
+  white-space: normal !important;
+  overflow-wrap: anywhere !important;
+  word-break: break-word !important;
+}
+
+.aigo-hero-text span {
+  display: inline;
+}
+
+.aigo-hero-actions {
+  display: flex;
+  justify-content: center;
+  gap: 14px;
+  margin-top: 34px;
+}
+
+.aigo-hero-actions .semi-button,
+.aigo-plan-card .semi-button,
+.aigo-credit-box .semi-button {
+  min-height: 44px;
+  border-radius: 999px;
+  font-weight: 700;
+}
+
+.aigo-hero-actions .semi-button-primary,
+.aigo-plan-card .semi-button-primary,
+.aigo-credit-box .semi-button-primary {
+  background: #3b82f6;
+  border-color: #3b82f6;
+  box-shadow: 0 18px 44px rgba(59, 130, 246, 0.3);
+}
+
+.aigo-endpoint-card {
+  width: min(660px, 100%);
+  padding: 14px;
+  margin: 28px auto 0;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.06);
+  box-shadow: 0 18px 56px rgba(0, 0, 0, 0.24);
+  backdrop-filter: blur(12px);
+  text-align: left;
+}
+
+.aigo-endpoint-card > span {
+  display: block;
+  margin: 0 0 8px 2px;
+  color: rgba(255, 255, 255, 0.64);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.aigo-endpoint-card .semi-input-wrapper {
+  border-radius: 12px;
+  color: #ffffff;
+  background: rgba(4, 7, 14, 0.72);
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+.aigo-hero-cards {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  width: min(920px, 100%);
+  margin: 54px auto 0;
+}
+
+.aigo-hero-card {
+  display: flex;
+  gap: 14px;
+  min-height: 116px;
+  padding: 22px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.06);
+  box-shadow: 0 14px 44px rgba(0, 0, 0, 0.24);
+  backdrop-filter: blur(14px);
+  text-align: left;
+  transition:
+    border-color 0.2s ease,
+    transform 0.2s ease;
+}
+
+.aigo-hero-card:hover {
+  border-color: rgba(255, 255, 255, 0.28);
+  transform: translateY(-4px);
+}
+
+.aigo-hero-card svg {
+  flex: 0 0 auto;
+  color: #60a5fa;
+}
+
+.aigo-hero-card h3 {
+  margin: 0 0 8px;
+  color: #ffffff;
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0;
+}
+
+.aigo-hero-card p {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.68);
+  font-size: 13px;
+  line-height: 1.7;
+  letter-spacing: 0;
+}
+
+.aigo-trust {
+  margin-top: auto;
+  padding-top: 72px;
+}
+
+.aigo-trust p {
+  margin: 0 0 18px;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 14px;
+}
+
+.aigo-trust > div {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 28px;
+}
+
+.aigo-trust span {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  color: rgba(255, 255, 255, 0.54);
+}
+
+.aigo-trust strong {
+  color: #60a5fa;
+  font-size: 26px;
+  font-weight: 900;
+}
+
+.aigo-trust em {
+  font-size: 14px;
+  font-style: normal;
+}
+
+.aigo-section {
+  width: min(1180px, calc(100% - 48px));
+  margin: 0 auto;
+  padding: 96px 0 0;
+}
+
+.aigo-section-heading {
+  max-width: 760px;
+  margin: 0 auto 46px;
+  text-align: center;
+}
+
+.aigo-section-heading h2.semi-typography,
+.aigo-flexible h3.semi-typography,
+.aigo-faq h2.semi-typography {
+  margin: 0 0 16px;
+  color: #ffffff;
+  font-size: clamp(32px, 4vw, 54px);
+  font-weight: 800;
+  line-height: 1.15;
+  letter-spacing: 0;
+}
+
+.aigo-section-heading > span.semi-typography,
+.aigo-flexible p {
+  display: block;
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 17px;
+  line-height: 1.8;
+}
+
+.aigo-pill-label,
+.aigo-plan-kicker {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 18px;
+  color: #e78a53;
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 0;
+}
+
+.aigo-plan-kicker {
+  width: 100%;
+  margin-bottom: 24px;
+}
+
+.aigo-plan-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 18px;
+  align-items: stretch;
+}
+
+.aigo-plan-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 420px;
+  padding: 30px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 24px;
+  background: rgba(15, 23, 42, 0.82);
+  box-shadow: 0 20px 58px rgba(0, 0, 0, 0.24);
+}
+
+.aigo-plan-card.is-recommended {
+  border-color: rgba(59, 130, 246, 0.75);
+  box-shadow: 0 24px 70px rgba(59, 130, 246, 0.22);
+}
+
+.aigo-recommended {
+  position: absolute;
+  top: -14px;
+  left: 50%;
+  padding: 6px 14px;
+  border-radius: 999px;
+  color: #ffffff;
+  background: #3b82f6;
+  font-size: 12px;
+  font-weight: 800;
+  transform: translateX(-50%);
+}
+
+.aigo-plan-head {
+  min-height: 72px;
+  text-align: center;
+}
+
+.aigo-plan-head h3 {
+  margin: 0 0 8px;
+  color: #ffffff;
+  font-size: 21px;
+  font-weight: 800;
+  letter-spacing: 0;
+}
+
+.aigo-plan-head p {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.58);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.aigo-price {
+  padding: 24px 0;
+  margin: 12px 0 22px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  text-align: center;
+}
+
+.aigo-price strong {
+  color: #ffffff;
+  font-size: 40px;
+  font-weight: 900;
+}
+
+.aigo-price span {
+  color: rgba(255, 255, 255, 0.56);
+  font-weight: 700;
+}
+
+.aigo-plan-card ul {
+  display: grid;
+  gap: 14px;
+  flex: 1;
+  padding: 0;
+  margin: 0 0 28px;
+  list-style: none;
+}
+
+.aigo-plan-card li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: rgba(255, 255, 255, 0.74);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.aigo-plan-card li svg {
+  flex: 0 0 auto;
+  color: #94a3b8;
+}
+
+.aigo-flexible {
+  display: grid;
+  grid-template-columns: 1fr 420px;
+  gap: 36px;
+  align-items: center;
+  margin-top: 36px;
+  padding: 34px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 28px;
+  background: linear-gradient(
+    135deg,
+    rgba(15, 23, 42, 0.92),
+    rgba(30, 41, 59, 0.72)
+  );
+}
+
+.aigo-flexible h3.semi-typography {
+  font-size: 32px;
+}
+
+.aigo-credit-box {
+  display: grid;
+  gap: 12px;
+}
+
+.aigo-credit-row {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 14px;
+  align-items: center;
+  min-height: 66px;
+  padding: 0 18px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.aigo-credit-row span {
+  display: grid;
+  gap: 3px;
+  color: rgba(255, 255, 255, 0.52);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.aigo-credit-row strong {
+  color: #ffffff;
+  font-size: 22px;
+}
+
+.aigo-credit-row svg {
+  color: #e78a53;
+}
+
+.aigo-reviews {
+  overflow: hidden;
+}
+
+.aigo-testimonial-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.aigo-testimonial {
+  position: relative;
+  min-height: 260px;
+  padding: 28px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 26px;
+  background: rgba(15, 23, 42, 0.82);
+  box-shadow: 0 20px 58px rgba(0, 0, 0, 0.2);
+}
+
+.aigo-testimonial svg {
+  color: #e78a53;
+}
+
+.aigo-testimonial p {
+  margin: 18px 0 28px;
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 15px;
+  line-height: 1.8;
+}
+
+.aigo-testimonial > div {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.aigo-testimonial img {
+  width: 42px;
+  height: 42px;
+  border-radius: 999px;
+  object-fit: cover;
+}
+
+.aigo-testimonial span {
+  display: grid;
+  gap: 3px;
+}
+
+.aigo-testimonial strong {
+  color: #ffffff;
+  font-size: 14px;
+}
+
+.aigo-testimonial em {
+  color: rgba(255, 255, 255, 0.56);
+  font-size: 12px;
+  font-style: normal;
+}
+
+.aigo-faq {
+  max-width: 760px;
+  padding-bottom: 92px;
+}
+
+.aigo-faq-list {
+  display: grid;
+  gap: 16px;
+}
+
+.aigo-faq-item {
+  padding: 22px 24px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 22px;
+  background: linear-gradient(
+    180deg,
+    rgba(30, 41, 59, 0.82),
+    rgba(15, 23, 42, 0.7)
+  );
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.aigo-faq-item summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  color: #ffffff;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 800;
+  list-style: none;
+}
+
+.aigo-faq-item summary::-webkit-details-marker {
+  display: none;
+}
+
+.aigo-faq-item summary b {
+  color: #e78a53;
+  font-size: 20px;
+}
+
+.aigo-faq-item p {
+  margin: 16px 0 0;
+  color: rgba(255, 255, 255, 0.64);
+  line-height: 1.8;
+}
+
+.aigo-footer {
+  color: #121113;
+  background: #e78a53;
+}
+
+.aigo-footer-inner {
+  display: grid;
+  grid-template-columns: 1.4fr 0.7fr 0.7fr;
+  gap: 42px;
+  width: min(1120px, calc(100% - 48px));
+  margin: 0 auto;
+  padding: 56px 0 44px;
+}
+
+.aigo-footer h2,
+.aigo-footer h3,
+.aigo-footer p {
+  margin: 0;
+}
+
+.aigo-footer h2 {
+  font-size: 28px;
+  font-weight: 900;
+}
+
+.aigo-footer p {
+  margin-top: 12px;
+  font-size: 15px;
+  opacity: 0.82;
+}
+
+.aigo-footer small {
+  display: block;
+  margin-top: 12px;
+  opacity: 0.68;
+}
+
+.aigo-footer h3 {
+  margin-bottom: 16px;
+  font-size: 15px;
+  font-weight: 900;
+}
+
+.aigo-footer a {
+  display: block;
+  width: fit-content;
+  margin: 10px 0;
+  color: #121113;
+  opacity: 0.78;
+  text-decoration: none;
+}
+
+.aigo-footer a:hover {
+  opacity: 1;
+  text-decoration: underline;
+}
+
+.aigo-footer-bottom {
+  width: min(1120px, calc(100% - 48px));
+  padding: 20px 0 28px;
+  margin: 0 auto;
+  border-top: 1px solid rgba(18, 17, 19, 0.22);
+  font-size: 13px;
+  opacity: 0.68;
+}
+
+@media (max-width: 1080px) {
+  .aigo-plan-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .aigo-flexible,
+  .aigo-footer-inner {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 760px) {
+  .aigo-hero-inner,
+  .aigo-section,
+  .aigo-footer-inner,
+  .aigo-footer-bottom {
+    width: calc(100% - 32px);
+  }
+
+  .aigo-hero-inner {
+    padding-top: 76px;
+  }
+
+  .aigo-brand-mark {
+    margin-bottom: 18px;
+  }
+
+  .aigo-hero-title.semi-typography {
+    font-size: 36px;
+    line-height: 1.16;
+  }
+
+  .aigo-hero-text.semi-typography {
+    font-size: 16px;
+  }
+
+  .aigo-hero-text span {
+    display: block;
+    max-width: 22em;
+    margin: 0 auto;
+  }
+
+  .aigo-mobile-title-tail {
+    display: block;
+  }
+
+  .aigo-hero-actions,
+  .aigo-trust > div {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .aigo-hero-actions a,
+  .aigo-hero-actions .semi-button {
+    width: 100%;
+  }
+
+  .aigo-hero-cards,
+  .aigo-plan-grid,
+  .aigo-testimonial-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .aigo-flexible {
+    padding: 22px;
+  }
+
+  .aigo-credit-row {
+    grid-template-columns: 1fr;
+    text-align: center;
   }
 }
 

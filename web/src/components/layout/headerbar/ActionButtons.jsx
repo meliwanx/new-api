@@ -36,10 +36,27 @@ const ActionButtons = ({
   isLoading,
   isMobile,
   isSelfUseMode,
+  landingMode,
   logout,
   navigate,
   t,
 }) => {
+  if (landingMode) {
+    return (
+      <div className='landing-action-buttons flex items-center gap-2 md:gap-3'>
+        <UserArea
+          userState={userState}
+          isLoading={isLoading}
+          isMobile={isMobile}
+          isSelfUseMode={isSelfUseMode}
+          logout={logout}
+          navigate={navigate}
+          t={t}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className='flex items-center gap-2 md:gap-3'>
       <NewYearButton isNewYear={isNewYear} />

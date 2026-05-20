@@ -53,6 +53,20 @@ const Navigation = ({
         );
       }
 
+      if (link.href) {
+        return (
+          <a
+            key={link.itemKey}
+            href={link.href}
+            target={link.targetBlank ? '_blank' : undefined}
+            rel={link.targetBlank ? 'noopener noreferrer' : undefined}
+            className={commonLinkClasses}
+          >
+            {linkContent}
+          </a>
+        );
+      }
+
       let targetPath = link.to;
       if (link.itemKey === 'console' && !userState.user) {
         targetPath = '/login';

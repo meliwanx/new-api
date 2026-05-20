@@ -23,22 +23,14 @@ import { Link } from 'react-router-dom';
 import { marked } from 'marked';
 import { useTranslation } from 'react-i18next';
 import {
-  Activity,
   ArrowRight,
-  BarChart3,
   BookOpen,
   CheckCircle2,
+  Code2,
   Copy as CopyIcon,
-  Database,
-  Gauge,
-  GitBranch,
-  Globe2,
-  KeyRound,
-  Network,
-  Server,
-  ShieldCheck,
-  Terminal,
-  Users,
+  MessageSquareQuote,
+  Shield,
+  Sparkles,
   WalletCards,
   Zap,
 } from 'lucide-react';
@@ -64,117 +56,121 @@ const isUrlContent = (value) => /^https?:\/\//i.test(value);
 const isLocalAddress = (value) =>
   /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?/i.test(value || '');
 
-const metrics = [
-  { value: '分钟级', label: '开通中转调用' },
-  { value: '/v1', label: '兼容标准接口' },
-  { value: '按量', label: '余额统一结算' },
-  { value: '7x24', label: '线路状态监控' },
-];
-
-const features = [
+const heroCards = [
   {
-    icon: Terminal,
-    title: '即开即用的模型接口',
-    desc: '注册后生成访问密钥，把业务里的 Base URL 切到统一地址即可调用。',
+    icon: Shield,
+    title: '稳定中转',
+    desc: '统一管理模型线路、密钥和余额，让业务调用保持稳定。',
   },
   {
-    icon: GitBranch,
-    title: '稳定线路与自动切换',
-    desc: '中转服务持续监测线路状态，请求异常时尽量切换到可用通道。',
+    icon: Zap,
+    title: '快速接入',
+    desc: '兼容常用 API 格式，替换 Base URL 后即可开始调用。',
   },
   {
-    icon: WalletCards,
-    title: '充值余额统一消费',
-    desc: '按量使用文本、视觉、语音和向量模型，消费明细清晰可查。',
-  },
-  {
-    icon: KeyRound,
-    title: '应用级密钥隔离',
-    desc: '为不同项目创建独立 Key，单独设置额度、过期时间和使用范围。',
-  },
-  {
-    icon: BarChart3,
-    title: '用量和成本透明',
-    desc: '实时查看 token、请求数、余额变化和失败原因，方便核算成本。',
-  },
-  {
-    icon: ShieldCheck,
-    title: '限额与风控保护',
-    desc: '支持额度上限、频率限制和异常调用控制，避免密钥被滥用。',
-  },
-  {
-    icon: Network,
-    title: '同一入口调用多类模型',
-    desc: 'Chat、Embedding、Vision、Audio 等能力收束到同一个调用入口。',
-  },
-  {
-    icon: Users,
-    title: '团队账户共享额度',
-    desc: '成员、应用和业务线可以共用账户余额，也可以按项目独立管控。',
+    icon: Code2,
+    title: '专业服务',
+    desc: '提供接入建议、使用协助和问题排查，适合长期业务使用。',
   },
 ];
 
-const models = [
-  'GPT-4o',
-  'Claude 3.5',
-  'Gemini 2.0',
-  'DeepSeek',
-  'Qwen',
-  'Moonshot',
-  'Doubao',
-  'GLM',
-  'Flux',
-  'DALL·E',
-  'Whisper',
-  'Embedding',
+const trustMetrics = [
+  { value: '多模型', label: '主流模型接入' },
+  { value: '99.9%', label: '服务稳定目标' },
+  { value: '分钟级', label: '完成接入配置' },
+  { value: '1v1', label: '专属服务支持' },
 ];
 
-const servicePlans = [
+const subscriptionPlans = [
   {
-    title: '轻量接入',
-    desc: '适合个人工具、原型项目和低频业务调用。',
-    items: ['按量充值', '共享中转线路', '基础用量统计'],
+    name: 'Starter Plan',
+    audience: '个人测试与轻量应用',
+    price: '¥50',
+    period: '起充',
+    items: ['按量余额消费', '共享中转线路', '兼容 /v1 接口'],
   },
   {
-    title: '业务调用',
-    desc: '适合已经上线的产品，把模型调用稳定接入生产环境。',
-    items: ['多应用密钥', '线路自动切换', '消费与失败追踪'],
+    name: 'Standard Plan',
+    audience: '日常开发与小型产品',
+    price: '¥399',
+    period: '/月',
+    items: ['更高并发额度', '用量明细统计', '模型调用建议'],
   },
   {
-    title: '团队协作',
-    desc: '适合多项目、多成员共同使用同一套模型中转服务。',
-    items: ['额度分配', '成员权限', '异常调用控制'],
-  },
-];
-
-const trafficBars = [68, 42, 76, 55, 88, 63, 72, 51, 82, 46, 70, 60];
-
-const routeRows = [
-  {
-    model: 'chat/completions',
-    provider: '高速线路',
-    status: '可用',
-    latency: '118ms',
+    name: 'Premium Plan',
+    audience: '生产业务与团队使用',
+    price: '¥899',
+    period: '/月',
+    recommended: true,
+    items: ['线路优先保障', '多项目密钥管理', '异常请求协助排查'],
   },
   {
-    model: 'responses',
-    provider: '稳定线路',
-    status: '备用',
-    latency: '142ms',
-  },
-  {
-    model: 'embeddings',
-    provider: '低价线路',
-    status: '可用',
-    latency: '96ms',
+    name: 'Professional Plan',
+    audience: '高频调用与企业项目',
+    price: '定制',
+    period: '',
+    items: ['专属接入方案', '团队额度管理', '合同与结算支持'],
   },
 ];
 
-const workflowSteps = [
-  { icon: WalletCards, title: '充值余额', desc: '按业务需要先充值额度' },
-  { icon: KeyRound, title: '创建密钥', desc: '给每个应用单独分配 Key' },
-  { icon: CopyIcon, title: '复制地址', desc: '把 Base URL 配到客户端' },
-  { icon: CheckCircle2, title: '开始调用', desc: '按模型名称直接发起请求' },
+const flexibleAmounts = [
+  { pay: '¥50', get: '$50' },
+  { pay: '¥100', get: '$100' },
+  { pay: '¥500', get: '$500' },
+];
+
+const testimonials = [
+  {
+    quote: '把多个模型能力收敛到同一个中转地址后，业务侧配置简单很多。',
+    name: '产品负责人',
+    role: 'SaaS 团队',
+    avatar:
+      'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=120&h=120&fit=crop&crop=face',
+  },
+  {
+    quote: '按量余额和密钥隔离适合多项目使用，成本也更容易对账。',
+    name: '后端工程师',
+    role: '独立开发者',
+    avatar:
+      'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=120&h=120&fit=crop&crop=face',
+  },
+  {
+    quote: '我们重点需要稳定的模型中转和问题响应，这个服务很符合团队协作场景。',
+    name: '技术负责人',
+    role: '企业研发团队',
+    avatar:
+      'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=120&h=120&fit=crop&crop=face',
+  },
+  {
+    quote: '统一入口让客户端和服务端都能复用同一套调用方式，迭代效率更高。',
+    name: '全栈开发者',
+    role: '工具产品团队',
+    avatar:
+      'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&h=120&fit=crop&crop=face',
+  },
+];
+
+const faqs = [
+  {
+    question: '八方是什么服务？',
+    answer:
+      '八方是大模型中转站服务，面向个人、团队和企业提供统一模型调用入口、余额计费、密钥管理和接入支持。',
+  },
+  {
+    question: '接入方式复杂吗？',
+    answer:
+      '不复杂。创建账号和密钥后，把客户端或服务端里的 Base URL 改成八方提供的中转地址，并按模型名称发起请求即可。',
+  },
+  {
+    question: '如何管理不同项目的调用？',
+    answer:
+      '可以为不同项目创建独立密钥，并设置额度、过期时间和使用范围，方便隔离风险和核算成本。',
+  },
+  {
+    question: '是否适合生产业务？',
+    answer:
+      '适合需要稳定模型调用、清晰账单和服务支持的业务场景。高频或团队使用可以选择更高等级服务方案。',
+  },
 ];
 
 const Home = () => {
@@ -318,301 +314,260 @@ const Home = () => {
   }
 
   return (
-    <main className='saas-home'>
+    <main className='saas-home aigocode-home'>
       <NoticeModal
         visible={noticeVisible}
         onClose={() => setNoticeVisible(false)}
         isMobile={isMobile}
       />
 
-      <section className='saas-hero'>
-        <div className='saas-hero-grid' />
-        <div className='saas-hero-visual' aria-hidden='true'>
-          <div className='gateway-map'>
-            <div className='gateway-node gateway-node-main'>
-              <Terminal size={24} />
-              <span>{t('中转服务')}</span>
+      <section className='aigo-hero'>
+        <div className='aigo-hero-pattern' aria-hidden='true' />
+        <div className='aigo-hero-inner'>
+          <div className='aigo-hero-copy'>
+            <div className='aigo-brand-mark'>
+              <span>八方</span>
+              <b>&gt;_</b>
             </div>
-            <div className='gateway-node gateway-node-a'>{t('用户业务')}</div>
-            <div className='gateway-node gateway-node-b'>Chat</div>
-            <div className='gateway-node gateway-node-c'>Vision</div>
-            <div className='gateway-node gateway-node-d'>Embedding</div>
-          </div>
-          <div className='hero-console'>
-            <div className='hero-console-header'>
-              <span />
-              <span />
-              <span />
-              <strong>Model Transit Desk</strong>
-            </div>
-            <div className='hero-console-body'>
-              <div className='hero-console-panel hero-console-panel-wide'>
-                <div className='panel-title'>
-                  <Activity size={16} />
-                  <span>Live requests</span>
-                </div>
-                <div className='traffic-chart'>
-                  {trafficBars.map((height, index) => (
-                    <i key={index} style={{ height: `${height}%` }} />
-                  ))}
-                </div>
-              </div>
-              <div className='hero-console-panel'>
-                <div className='panel-title'>
-                  <Gauge size={16} />
-                  <span>Response</span>
-                </div>
-                <strong>120ms</strong>
-                <small>P95 relay time</small>
-              </div>
-              <div className='hero-console-panel'>
-                <div className='panel-title'>
-                  <Zap size={16} />
-                  <span>Availability</span>
-                </div>
-                <strong>99.92%</strong>
-                <small>Last 24 hours</small>
-              </div>
-              <div className='hero-console-panel hero-console-panel-table'>
-                <div className='panel-title'>
-                  <Server size={16} />
-                  <span>Service routing</span>
-                </div>
-                {routeRows.map((row) => (
-                  <div className='route-row' key={row.model}>
-                    <span>{row.model}</span>
-                    <b>{row.provider}</b>
-                    <em>{row.status}</em>
-                    <small>{row.latency}</small>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className='saas-hero-content'>
-          <div className='saas-eyebrow'>
-            <Globe2 size={16} />
-            <span>{t('Model Transit Service')}</span>
-          </div>
-          <Title
-            heading={1}
-            className={`saas-hero-title ${isChinese ? 'tracking-wide' : ''}`}
-          >
-            {t('稳定的大模型中转服务')}
-          </Title>
-          <Text className='saas-hero-copy'>
-            {t(
-              '一个密钥、一条兼容接口，按量使用主流大模型。我们负责线路、余额、监控和失败切换，你只需要把模型能力接进自己的业务。',
-            )}
-          </Text>
-          <div className='saas-hero-actions'>
-            <Link to='/console'>
-              <Button
-                theme='solid'
-                type='primary'
-                size='large'
-                icon={<ArrowRight size={18} />}
-                iconPosition='right'
-              >
-                {t('立即开通')}
-              </Button>
-            </Link>
-            {docsLink && (
-              <Button
-                size='large'
-                icon={<BookOpen size={18} />}
-                onClick={() => window.open(docsLink, '_blank')}
-              >
-                {t('接入文档')}
-              </Button>
-            )}
-          </div>
-          <div className='saas-endpoint'>
-            <span>{t('统一中转地址')}</span>
-            <Input
-              readOnly
-              value={apiBaseUrl}
-              suffix={
+            <Title
+              heading={1}
+              className={`aigo-hero-title ${isChinese ? 'tracking-wide' : ''}`}
+            >
+              {t('重构您的')}
+              <span className='aigo-mobile-title-tail'>
+                {t('大模型中转体验')}
+              </span>
+            </Title>
+            <Text className='aigo-hero-text'>
+              <span>{t('我们把模型接入、额度计费、密钥管理')}</span>
+              <span>{t('与服务支持整合到一个中转平台，')}</span>
+              <span>{t('帮助你专注自己的产品，')}</span>
+              <span>{t('而不是反复维护不同模型渠道。')}</span>
+            </Text>
+            <div className='aigo-hero-actions'>
+              <Link to='/login'>
                 <Button
-                  type='tertiary'
-                  icon={<CopyIcon size={16} />}
-                  onClick={handleCopyBaseURL}
-                  aria-label={t('复制')}
-                />
-              }
-            />
+                  theme='solid'
+                  type='primary'
+                  size='large'
+                  icon={<Zap size={18} />}
+                  iconPosition='left'
+                >
+                  {t('立即体验')}
+                </Button>
+              </Link>
+              {docsLink && (
+                <Button
+                  size='large'
+                  icon={<BookOpen size={18} />}
+                  onClick={() => window.open(docsLink, '_blank')}
+                >
+                  {t('查看文档')}
+                </Button>
+              )}
+            </div>
+            <div className='aigo-endpoint-card'>
+              <span>{t('统一中转地址')}</span>
+              <Input
+                readOnly
+                value={apiBaseUrl}
+                suffix={
+                  <Button
+                    type='tertiary'
+                    icon={<CopyIcon size={16} />}
+                    onClick={handleCopyBaseURL}
+                    aria-label={t('复制')}
+                  />
+                }
+              />
+            </div>
+          </div>
+
+          <div className='aigo-hero-cards'>
+            {heroCards.map((item) => {
+              const HeroIcon = item.icon;
+              return (
+                <article className='aigo-hero-card' key={item.title}>
+                  <HeroIcon size={22} />
+                  <div>
+                    <h3>{t(item.title)}</h3>
+                    <p>{t(item.desc)}</p>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+
+          <div className='aigo-trust'>
+            <p>{t('面向个人开发者、团队和企业的共同选择')}</p>
+            <div>
+              {trustMetrics.map((item) => (
+                <span key={item.label}>
+                  <strong>{item.value}</strong>
+                  <em>{t(item.label)}</em>
+                </span>
+              ))}
+            </div>
           </div>
         </div>
       </section>
 
-      <section className='saas-metrics'>
-        {metrics.map((item) => (
-          <div className='metric-item' key={item.label}>
-            <strong>{item.value}</strong>
-            <span>{t(item.label)}</span>
-          </div>
-        ))}
-      </section>
-
-      <section className='saas-section'>
-        <div className='section-heading'>
-          <Text className='section-kicker'>{t('Service Capabilities')}</Text>
-          <Title heading={2}>{t('你要接的是服务，不是自己维护一套系统')}</Title>
+      <section id='pricing' className='aigo-section aigo-pricing'>
+        <div className='aigo-section-heading'>
+          <Title heading={2}>{t('选择适合您的方案')}</Title>
           <Text>
             {t(
-              '密钥、余额、接口、用量和线路状态都在控制台完成管理，业务侧保持简单调用。',
+              '按量使用主流大模型能力，所有方案都包含账号安全、用量记录和基础服务支持。',
             )}
           </Text>
         </div>
-        <div className='feature-grid'>
-          {features.map((item) => {
-            const FeatureIcon = item.icon;
-            return (
-              <article className='feature-tile' key={item.title}>
-                <div className='feature-icon'>
-                  <FeatureIcon size={22} />
-                </div>
-                <h3>{t(item.title)}</h3>
-                <p>{t(item.desc)}</p>
-              </article>
-            );
-          })}
+        <div className='aigo-plan-kicker'>
+          <WalletCards size={20} />
+          <span>{t('套餐订阅')}</span>
         </div>
-      </section>
-
-      <section className='saas-section service-plan-section'>
-        <div className='section-heading'>
-          <Text className='section-kicker'>{t('Usage Scenarios')}</Text>
-          <Title heading={2}>{t('从个人工具到生产业务，都按调用量使用')}</Title>
-          <Text>
-            {t(
-              '不用自己维护模型渠道和余额体系，按业务阶段选择合适的调用方式。',
-            )}
-          </Text>
-        </div>
-        <div className='service-plan-grid'>
-          {servicePlans.map((plan) => (
-            <article className='service-plan-card' key={plan.title}>
-              <h3>{t(plan.title)}</h3>
-              <p>{t(plan.desc)}</p>
+        <div className='aigo-plan-grid'>
+          {subscriptionPlans.map((plan) => (
+            <article
+              className={`aigo-plan-card ${plan.recommended ? 'is-recommended' : ''}`}
+              key={plan.name}
+            >
+              {plan.recommended && (
+                <div className='aigo-recommended'>{t('推荐选择')}</div>
+              )}
+              <div className='aigo-plan-head'>
+                <h3>{plan.name}</h3>
+                <p>{t(plan.audience)}</p>
+              </div>
+              <div className='aigo-price'>
+                <strong>{plan.price}</strong>
+                {plan.period && <span>{plan.period}</span>}
+              </div>
               <ul>
                 {plan.items.map((item) => (
                   <li key={item}>
-                    <CheckCircle2 size={16} />
+                    <CheckCircle2 size={18} />
                     <span>{t(item)}</span>
                   </li>
                 ))}
               </ul>
+              <Link to='/login'>
+                <Button theme='solid' type='primary' block>
+                  {t('登录订阅')}
+                </Button>
+              </Link>
+            </article>
+          ))}
+        </div>
+
+        <div className='aigo-flexible'>
+          <div>
+            <Text className='aigo-pill-label'>{t('灵活额度')}</Text>
+            <Title heading={3}>{t('按量扣费，额度长期有效')}</Title>
+            <p>
+              {t(
+                '适合测试、临时扩容和多模型混合调用。充值后即可在控制台创建密钥并按调用量消费。',
+              )}
+            </p>
+          </div>
+          <div className='aigo-credit-box'>
+            {flexibleAmounts.map((item) => (
+              <div className='aigo-credit-row' key={item.pay}>
+                <span>
+                  {t('支付')}
+                  <strong>{item.pay}</strong>
+                </span>
+                <ArrowRight size={18} />
+                <span>
+                  {t('获得')}
+                  <strong>{item.get}</strong>
+                </span>
+              </div>
+            ))}
+            <Link to='/console/topup'>
+              <Button theme='solid' type='primary' block>
+                {t('立即购买')}
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      <section id='reviews' className='aigo-section aigo-reviews'>
+        <div className='aigo-section-heading'>
+          <Text className='aigo-pill-label'>{t('用户评价')}</Text>
+          <Title heading={2}>{t('用户怎么说')}</Title>
+          <Text>
+            {t(
+              '从个人项目到团队产品，八方为不同业务提供统一、稳定、可管理的大模型中转服务。',
+            )}
+          </Text>
+        </div>
+        <div className='aigo-testimonial-grid'>
+          {testimonials.concat(testimonials).map((item, index) => (
+            <article className='aigo-testimonial' key={`${item.name}-${index}`}>
+              <MessageSquareQuote size={22} />
+              <p>{t(item.quote)}</p>
+              <div>
+                <img src={item.avatar} alt={item.name} />
+                <span>
+                  <strong>{t(item.name)}</strong>
+                  <em>{t(item.role)}</em>
+                </span>
+              </div>
             </article>
           ))}
         </div>
       </section>
 
-      <section className='workflow-section'>
-        <div className='workflow-copy'>
-          <Text className='section-kicker'>{t('Quick Start')}</Text>
-          <Title heading={2}>{t('从充值到第一次调用，只需要几步')}</Title>
-          <Text>
-            {t(
-              '和接入 OpenAI 兼容接口一样简单：拿到 Key、配置地址、选择模型，然后把请求交给中转服务。',
-            )}
+      <section id='faq' className='aigo-section aigo-faq'>
+        <div className='aigo-section-heading'>
+          <Text className='aigo-pill-label'>
+            <Sparkles size={16} />
+            {t('常见问题')}
           </Text>
+          <Title heading={2}>{t('有疑问？我们来解答')}</Title>
         </div>
-        <div className='workflow-track'>
-          {workflowSteps.map((item, index) => {
-            const StepIcon = item.icon;
-            return (
-              <div className='workflow-step' key={item.title}>
-                <div className='workflow-index'>{index + 1}</div>
-                <StepIcon size={22} />
-                <h3>{t(item.title)}</h3>
-                <p>{t(item.desc)}</p>
-              </div>
-            );
-          })}
-        </div>
-      </section>
-
-      <section className='analytics-section'>
-        <div className='analytics-panel'>
-          <div className='analytics-header'>
-            <div>
-              <Text className='section-kicker'>{t('Account Visibility')}</Text>
-              <Title heading={2}>{t('余额、消费和请求状态随时可查')}</Title>
-            </div>
-            <div className='health-badge'>
-              <span />
-              {t('服务正常')}
-            </div>
-          </div>
-          <div className='analytics-grid'>
-            <div className='analytics-chart'>
-              {trafficBars.concat([74, 58, 92, 66]).map((height, index) => (
-                <span key={index} style={{ height: `${height}%` }} />
-              ))}
-            </div>
-            <div className='analytics-list'>
-              {[
-                ['余额', '¥8,642', '+20%'],
-                ['今日消费', '¥128.64', '-11.2%'],
-                ['请求数', '246K', '+8.1%'],
-                ['自动切换', '37', '-4.8%'],
-              ].map(([label, value, trend]) => (
-                <div className='analytics-row' key={label}>
-                  <span>{label}</span>
-                  <strong>{value}</strong>
-                  <em>{trend}</em>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className='saas-section provider-section'>
-        <div className='section-heading'>
-          <Text className='section-kicker'>{t('Model Access')}</Text>
-          <Title heading={2}>{t('常用模型能力都从同一个入口调用')}</Title>
-          <Text>
-            {t(
-              '按场景选择文本、视觉、语音、向量和任务模型，不需要在业务代码里反复更换接入方式。',
-            )}
-          </Text>
-        </div>
-        <div className='provider-grid'>
-          {models.map((model) => (
-            <div className='provider-tile' key={model}>
-              <Database size={18} />
-              <span>{model}</span>
-            </div>
+        <div className='aigo-faq-list'>
+          {faqs.map((item, index) => (
+            <details
+              className='aigo-faq-item'
+              key={item.question}
+              open={index === 0}
+            >
+              <summary>
+                <span>{t(item.question)}</span>
+                <b>+</b>
+              </summary>
+              <p>{t(item.answer)}</p>
+            </details>
           ))}
         </div>
       </section>
 
-      <section className='final-cta'>
-        <div>
-          <Text className='section-kicker'>{t('Start Today')}</Text>
-          <Title heading={2}>{t('现在开通大模型中转调用')}</Title>
-          <Text>
-            {t(
-              '先创建账号，拿到密钥后把业务里的 Base URL 切到统一中转地址，即可开始按量使用。',
-            )}
-          </Text>
+      <footer id='contact' className='aigo-footer'>
+        <div className='aigo-footer-inner'>
+          <div>
+            <h2>八方</h2>
+            <p>{t('面向业务的大模型中转站服务')}</p>
+            <small>{t('模型接入、余额计费、密钥管理与服务支持')}</small>
+          </div>
+          <div>
+            <h3>{t('产品')}</h3>
+            <a href='#pricing'>{t('定价')}</a>
+            <a href={docsLink || '/console'}>{t('文档')}</a>
+            <a href='#faq'>{t('常见问题')}</a>
+          </div>
+          <div>
+            <h3>{t('服务')}</h3>
+            <Link to='/console'>{t('控制台')}</Link>
+            <Link to='/pricing'>{t('模型广场')}</Link>
+            <Link to='/about'>{t('联系我们')}</Link>
+          </div>
         </div>
-        <Link to='/register'>
-          <Button
-            theme='solid'
-            type='primary'
-            size='large'
-            icon={<ArrowRight size={18} />}
-            iconPosition='right'
-          >
-            {t('创建账号')}
-          </Button>
-        </Link>
-      </section>
+        <div className='aigo-footer-bottom'>
+          © 2026 八方. All rights reserved.
+        </div>
+      </footer>
     </main>
   );
 };
