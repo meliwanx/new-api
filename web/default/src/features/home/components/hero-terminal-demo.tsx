@@ -35,6 +35,14 @@ interface ApiDemoConfig {
   accent: AccentTone
 }
 
+// Monochrome by design: every tab/endpoint shares the same neutral treatment
+// so the demo stays strictly black & white (Vercel-style).
+const MONO_ACCENT = {
+  activeText: 'text-foreground',
+  activeBorder: 'border-foreground',
+  badge: 'bg-foreground/10 text-foreground/80',
+}
+
 const ACCENT_CLASSES: Record<
   AccentTone,
   {
@@ -43,30 +51,10 @@ const ACCENT_CLASSES: Record<
     badge: string
   }
 > = {
-  emerald: {
-    activeText: 'text-emerald-600 dark:text-emerald-400',
-    activeBorder: 'border-emerald-500 dark:border-emerald-400',
-    badge:
-      'bg-emerald-500/10 text-emerald-600 dark:bg-emerald-400/10 dark:text-emerald-400',
-  },
-  amber: {
-    activeText: 'text-amber-600 dark:text-amber-400',
-    activeBorder: 'border-amber-500 dark:border-amber-400',
-    badge:
-      'bg-amber-500/10 text-amber-600 dark:bg-amber-400/10 dark:text-amber-400',
-  },
-  blue: {
-    activeText: 'text-blue-600 dark:text-blue-400',
-    activeBorder: 'border-blue-500 dark:border-blue-400',
-    badge:
-      'bg-blue-500/10 text-blue-600 dark:bg-blue-400/10 dark:text-blue-400',
-  },
-  violet: {
-    activeText: 'text-violet-600 dark:text-violet-400',
-    activeBorder: 'border-violet-500 dark:border-violet-400',
-    badge:
-      'bg-violet-500/10 text-violet-600 dark:bg-violet-400/10 dark:text-violet-400',
-  },
+  emerald: MONO_ACCENT,
+  amber: MONO_ACCENT,
+  blue: MONO_ACCENT,
+  violet: MONO_ACCENT,
 }
 
 const API_DEMOS: ApiDemoConfig[] = [
@@ -240,7 +228,9 @@ export function HeroTerminalDemo(props: HeroTerminalDemoProps) {
             )
           })}
           <div className='ml-auto flex items-center gap-2 pr-2 sm:pr-3'>
-            <span className='inline-block size-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.45)]' />
+            <span className='bg-foreground/70 relative inline-flex size-1.5 rounded-full'>
+              <span className='bg-foreground/40 absolute inline-flex h-full w-full animate-ping rounded-full' />
+            </span>
             <span className='text-foreground/40 font-mono text-[10px] tracking-wider uppercase'>
               200 ok
             </span>
@@ -501,47 +491,32 @@ function CodeLine(props: { children: ReactNode; indent?: number }) {
   )
 }
 
+// All syntax tokens are rendered in monochrome — differentiation comes from
+// weight and opacity only, never hue.
 function Command(props: { children: ReactNode }) {
-  return (
-    <span className='font-medium text-emerald-600 dark:text-emerald-400'>
-      {props.children}
-    </span>
-  )
+  return <span className='text-foreground font-semibold'>{props.children}</span>
 }
 
 function Flag(props: { children: ReactNode }) {
-  return (
-    <span className='text-blue-600 dark:text-blue-400'>{props.children}</span>
-  )
+  return <span className='text-foreground/45'>{props.children}</span>
 }
 
 function Key(props: { children: ReactNode }) {
-  return (
-    <span className='text-sky-700 dark:text-sky-300'>{props.children}</span>
-  )
+  return <span className='text-foreground/85 font-medium'>{props.children}</span>
 }
 
 function StringText(props: { children: ReactNode }) {
-  return (
-    <span className='text-amber-700 dark:text-amber-300'>{props.children}</span>
-  )
+  return <span className='text-foreground/65'>{props.children}</span>
 }
 
 function NumberText(props: { children: ReactNode }) {
-  return (
-    <span className='font-medium text-violet-600 dark:text-violet-300'>
-      {props.children}
-    </span>
-  )
+  return <span className='text-foreground font-medium'>{props.children}</span>
 }
 
 function Muted(props: { children: ReactNode }) {
-  return <span className='text-foreground/55'>{props.children}</span>
+  return <span className='text-foreground/45'>{props.children}</span>
 }
 
 function Accent(props: { children: ReactNode; accent: AccentTone }) {
-  const tone = ACCENT_CLASSES[props.accent]
-  return (
-    <span className={cn('font-medium', tone.activeText)}>{props.children}</span>
-  )
+  return <span className='text-foreground font-medium'>{props.children}</span>
 }
