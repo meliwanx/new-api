@@ -430,6 +430,55 @@ func GetAffCode(c *gin.Context) {
 	return
 }
 
+// GetAffiliateSummary 返回当前用户的多级分销概况：各级团队人数、各级累计返佣、配置比例与有效期。
+func GetAffiliateSummary(c *gin.Context) {
+	id := c.GetInt("id")
+
+	counts, err := model.GetReferralTeamCounts(id)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	commissionByLevel, err := model.GetReferralCommissionSummary(id)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+
+	rates := []float64{
+		common.AffCommissionRateL1,
+		common.AffCommissionRateL2,
+		common.AffCommissionRateL3,
+	}
+
+	levels := make([]gin.H, 0, 3)
+	var totalCommission int64
+	var totalTeam int64
+	for i := 0; i < 3; i++ {
+		commission := commissionByLevel[i+1]
+		totalCommission += commission
+		totalTeam += counts[i]
+		levels = append(levels, gin.H{
+			"level":      i + 1,
+			"count":      counts[i],
+			"commission": commission,
+			"rate":       rates[i],
+		})
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "",
+		"data": gin.H{
+			"enabled":          common.AffMultiLevelEnabled,
+			"validity_days":    common.AffCommissionValidityDays,
+			"levels":           levels,
+			"total_commission": totalCommission,
+			"total_team":       totalTeam,
+		},
+	})
+}
+
 func GetSelf(c *gin.Context) {
 	id := c.GetInt("id")
 	userRole := c.GetInt("role")

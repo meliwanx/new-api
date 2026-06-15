@@ -144,6 +144,17 @@ var TelegramBotName = ""
 var QuotaForNewUser = 0
 var QuotaForInviter = 0
 var QuotaForInvitee = 0
+
+// 多级邀请分销（返佣）配置。
+// 当下级用户充值时，沿邀请链（User.InviterId）最多向上 3 级，
+// 按各级比例把充值额度的相应百分比作为佣金计入上级的邀请额度(AffQuota)。
+var AffMultiLevelEnabled = false  // 多级分销总开关；关闭时保持原有一级一次性奖励逻辑
+var AffCommissionRateL1 = 0.10    // 一级（直接邀请人）返佣比例
+var AffCommissionRateL2 = 0.05    // 二级（邀请人的邀请人）返佣比例
+var AffCommissionRateL3 = 0.02    // 三级返佣比例
+var AffCommissionMinRecharge = 0.0 // 触发返佣的最低充值金额（与 TopUp.Money 同单位）；0 表示不限制
+var AffCommissionValidityDays = 0  // 返佣有效期（天），从下级“注册日”算起；0 表示永久有效
+var AffCommissionOnlyRealPay = true // 仅对真实付费充值返佣（当前所有充值入口均为付费，保留开关以备扩展）
 var ChannelDisableThreshold = 5.0
 var AutomaticDisableChannelEnabled = false
 var AutomaticEnableChannelEnabled = false
@@ -257,8 +268,9 @@ const (
 )
 
 const (
-	TopUpStatusPending = "pending"
-	TopUpStatusSuccess = "success"
-	TopUpStatusFailed  = "failed"
-	TopUpStatusExpired = "expired"
+	TopUpStatusPending  = "pending"
+	TopUpStatusSuccess  = "success"
+	TopUpStatusFailed   = "failed"
+	TopUpStatusExpired  = "expired"
+	TopUpStatusRefunded = "refunded"
 )

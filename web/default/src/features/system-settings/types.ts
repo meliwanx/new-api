@@ -274,6 +274,13 @@ export type OperationsSettings = {
   DefaultCollapseSidebar: boolean
   DemoSiteEnabled: boolean
   SelfUseModeEnabled: boolean
+  AffMultiLevelEnabled: boolean
+  AffCommissionRateL1: number
+  AffCommissionRateL2: number
+  AffCommissionRateL3: number
+  AffCommissionMinRecharge: number
+  AffCommissionValidityDays: number
+  AffCommissionOnlyRealPay: boolean
   ChannelDisableThreshold: string
   QuotaRemindThreshold: string
   AutomaticDisableChannelEnabled: boolean

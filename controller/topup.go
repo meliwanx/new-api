@@ -405,6 +405,7 @@ func EpayNotify(c *gin.Context) {
 			}
 			logger.LogInfo(c.Request.Context(), fmt.Sprintf("易支付 充值成功 trade_no=%s user_id=%d client_ip=%s quota_to_add=%d money=%.2f topup=%q", topUp.TradeNo, topUp.UserId, c.ClientIP(), quotaToAdd, topUp.Money, common.GetJsonString(topUp)))
 			model.RecordTopupLog(topUp.UserId, fmt.Sprintf("使用在线充值成功，充值金额: %v，支付金额：%f", logger.LogQuota(quotaToAdd), topUp.Money), c.ClientIP(), topUp.PaymentMethod, "epay")
+			model.DistributeReferralCommission(topUp.UserId, topUp.Money, int64(quotaToAdd), topUp.TradeNo)
 		}
 	} else {
 		logger.LogInfo(c.Request.Context(), fmt.Sprintf("易支付 webhook 忽略事件 trade_no=%s callback_type=%s trade_status=%s client_ip=%s verify_info=%q", verifyInfo.ServiceTradeNo, verifyInfo.Type, verifyInfo.TradeStatus, c.ClientIP(), common.GetJsonString(verifyInfo)))
@@ -504,6 +505,34 @@ func AdminCompleteTopUp(c *gin.Context) {
 	defer UnlockOrder(req.TradeNo)
 
 	if err := model.ManualCompleteTopUp(req.TradeNo, c.ClientIP()); err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	common.ApiSuccess(c, nil)
+}
+
+type AdminRefundTopupRequest struct {
+	TradeNo string `json:"trade_no"`
+	Reason  string `json:"reason"`
+}
+
+// AdminRefundTopUp 管理员退款接口：扣回到账额度并冲正多级返佣。
+func AdminRefundTopUp(c *gin.Context) {
+	var req AdminRefundTopupRequest
+	if err := c.ShouldBindJSON(&req); err != nil || req.TradeNo == "" {
+		common.ApiErrorMsg(c, "参数错误")
+		return
+	}
+	reason := req.Reason
+	if reason == "" {
+		reason = "管理员退款"
+	}
+
+	// 订单级互斥，防止与补单/回调并发。
+	LockOrder(req.TradeNo)
+	defer UnlockOrder(req.TradeNo)
+
+	if err := model.RefundTopUp(req.TradeNo, reason); err != nil {
 		common.ApiError(c, err)
 		return
 	}

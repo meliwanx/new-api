@@ -22,6 +22,7 @@ import type {
   PaymentRequest,
   AmountRequest,
   AffiliateTransferRequest,
+  AffiliateSummaryResponse,
   ApiResponse,
   TopupInfoResponse,
   RedemptionResponse,
@@ -32,6 +33,7 @@ import type {
   AffiliateTransferResponse,
   BillingHistoryResponse,
   CompleteOrderRequest,
+  RefundOrderRequest,
   CreemPaymentRequest,
   CreemPaymentResponse,
   WaffoPaymentRequest,
@@ -187,6 +189,14 @@ export async function transferAffiliateQuota(
 }
 
 /**
+ * Get multi-level affiliate summary (per-level team counts + commission)
+ */
+export async function getAffiliateSummary(): Promise<AffiliateSummaryResponse> {
+  const res = await api.get('/api/user/aff/summary')
+  return res.data
+}
+
+/**
  * Get billing history for current user
  */
 export async function getUserBillingHistory(
@@ -231,5 +241,15 @@ export async function completeOrder(
   request: CompleteOrderRequest
 ): Promise<ApiResponse> {
   const res = await api.post('/api/user/topup/complete', request)
+  return res.data
+}
+
+/**
+ * Refund a successful order (admin only)
+ */
+export async function refundOrder(
+  request: RefundOrderRequest
+): Promise<ApiResponse> {
+  const res = await api.post('/api/user/topup/refund', request)
   return res.data
 }

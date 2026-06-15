@@ -24,6 +24,7 @@ import {
   getUserBillingHistory,
   getAllBillingHistory,
   completeOrder,
+  refundOrder,
   isApiSuccess,
 } from '../api'
 import type { TopupRecord } from '../types'
@@ -50,6 +51,7 @@ export function useBillingHistory(options: UseBillingHistoryOptions = {}) {
   const [keyword, setKeyword] = useState('')
   const [loading, setLoading] = useState(false)
   const [completing, setCompleting] = useState(false)
+  const [refunding, setRefunding] = useState(false)
 
   /**
    * Fetch billing history
@@ -117,6 +119,39 @@ export function useBillingHistory(options: UseBillingHistoryOptions = {}) {
   )
 
   /**
+   * Refund a successful order (admin only)
+   */
+  const handleRefundOrder = useCallback(
+    async (tradeNo: string, reason?: string) => {
+      if (!isAdmin) {
+        toast.error(i18next.t('Admin access required'))
+        return false
+      }
+
+      setRefunding(true)
+      try {
+        const response = await refundOrder({ trade_no: tradeNo, reason })
+        if (isApiSuccess(response)) {
+          toast.success(i18next.t('Order refunded successfully'))
+          await fetchBillingHistory()
+          return true
+        } else {
+          toast.error(response.message || i18next.t('Failed to refund order'))
+          return false
+        }
+      } catch (error) {
+        // eslint-disable-next-line no-console
+        console.error('Failed to refund order:', error)
+        toast.error(i18next.t('Failed to refund order'))
+        return false
+      } finally {
+        setRefunding(false)
+      }
+    },
+    [isAdmin, fetchBillingHistory]
+  )
+
+  /**
    * Change page
    */
   const handlePageChange = useCallback((newPage: number) => {
@@ -152,11 +187,13 @@ export function useBillingHistory(options: UseBillingHistoryOptions = {}) {
     keyword,
     loading,
     completing,
+    refunding,
     isAdmin,
     handlePageChange,
     handlePageSizeChange,
     handleSearch,
     handleCompleteOrder,
+    handleRefundOrder,
     refresh: fetchBillingHistory,
   }
 }

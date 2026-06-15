@@ -21,8 +21,13 @@ import i18next from 'i18next'
 import { toast } from 'sonner'
 import { getSelf } from '@/lib/api'
 import { useCopyToClipboard } from '@/hooks/use-copy-to-clipboard'
-import { getAffiliateCode, transferAffiliateQuota } from '../api'
+import {
+  getAffiliateCode,
+  getAffiliateSummary,
+  transferAffiliateQuota,
+} from '../api'
 import { generateAffiliateLink } from '../lib'
+import type { AffiliateSummary } from '../types'
 
 // ============================================================================
 // Affiliate Hook
@@ -31,6 +36,7 @@ import { generateAffiliateLink } from '../lib'
 export function useAffiliate() {
   const [affiliateCode, setAffiliateCode] = useState<string>('')
   const [affiliateLink, setAffiliateLink] = useState<string>('')
+  const [summary, setSummary] = useState<AffiliateSummary | null>(null)
   const [loading, setLoading] = useState(true)
   const [transferring, setTransferring] = useState(false)
   const { copyToClipboard } = useCopyToClipboard()
@@ -54,6 +60,19 @@ export function useAffiliate() {
     }
   }, [])
 
+  // Fetch multi-level affiliate summary (best-effort, non-blocking)
+  const fetchAffiliateSummary = useCallback(async () => {
+    try {
+      const response = await getAffiliateSummary()
+      if (response.success && response.data) {
+        setSummary(response.data)
+      }
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error('Failed to fetch affiliate summary:', error)
+    }
+  }, [])
+
   // Copy affiliate link
   const copyAffiliateLink = useCallback(() => {
     copyToClipboard(affiliateLink)
@@ -68,6 +87,7 @@ export function useAffiliate() {
       if (response.success) {
         toast.success(response.message || i18next.t('Transfer successful'))
         await getSelf()
+        await fetchAffiliateSummary()
         return true
       }
 
@@ -79,15 +99,17 @@ export function useAffiliate() {
     } finally {
       setTransferring(false)
     }
-  }, [])
+  }, [fetchAffiliateSummary])
 
   useEffect(() => {
     fetchAffiliateCode()
-  }, [fetchAffiliateCode])
+    fetchAffiliateSummary()
+  }, [fetchAffiliateCode, fetchAffiliateSummary])
 
   return {
     affiliateCode,
     affiliateLink,
+    summary,
     loading,
     transferring,
     copyAffiliateLink,

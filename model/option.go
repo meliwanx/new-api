@@ -131,6 +131,13 @@ func InitOptionMap() {
 	common.OptionMap["QuotaForNewUser"] = strconv.Itoa(common.QuotaForNewUser)
 	common.OptionMap["QuotaForInviter"] = strconv.Itoa(common.QuotaForInviter)
 	common.OptionMap["QuotaForInvitee"] = strconv.Itoa(common.QuotaForInvitee)
+	common.OptionMap["AffMultiLevelEnabled"] = strconv.FormatBool(common.AffMultiLevelEnabled)
+	common.OptionMap["AffCommissionRateL1"] = strconv.FormatFloat(common.AffCommissionRateL1, 'f', -1, 64)
+	common.OptionMap["AffCommissionRateL2"] = strconv.FormatFloat(common.AffCommissionRateL2, 'f', -1, 64)
+	common.OptionMap["AffCommissionRateL3"] = strconv.FormatFloat(common.AffCommissionRateL3, 'f', -1, 64)
+	common.OptionMap["AffCommissionMinRecharge"] = strconv.FormatFloat(common.AffCommissionMinRecharge, 'f', -1, 64)
+	common.OptionMap["AffCommissionValidityDays"] = strconv.Itoa(common.AffCommissionValidityDays)
+	common.OptionMap["AffCommissionOnlyRealPay"] = strconv.FormatBool(common.AffCommissionOnlyRealPay)
 	common.OptionMap["QuotaRemindThreshold"] = strconv.Itoa(common.QuotaRemindThreshold)
 	common.OptionMap["PreConsumedQuota"] = strconv.Itoa(common.PreConsumedQuota)
 	common.OptionMap["ModelRequestRateLimitCount"] = strconv.Itoa(setting.ModelRequestRateLimitCount)
@@ -500,6 +507,20 @@ func updateOptionMap(key string, value string) (err error) {
 		common.QuotaForInviter, _ = strconv.Atoi(value)
 	case "QuotaForInvitee":
 		common.QuotaForInvitee, _ = strconv.Atoi(value)
+	case "AffMultiLevelEnabled":
+		common.AffMultiLevelEnabled, _ = strconv.ParseBool(value)
+	case "AffCommissionRateL1":
+		common.AffCommissionRateL1, _ = strconv.ParseFloat(value, 64)
+	case "AffCommissionRateL2":
+		common.AffCommissionRateL2, _ = strconv.ParseFloat(value, 64)
+	case "AffCommissionRateL3":
+		common.AffCommissionRateL3, _ = strconv.ParseFloat(value, 64)
+	case "AffCommissionMinRecharge":
+		common.AffCommissionMinRecharge, _ = strconv.ParseFloat(value, 64)
+	case "AffCommissionValidityDays":
+		common.AffCommissionValidityDays, _ = strconv.Atoi(value)
+	case "AffCommissionOnlyRealPay":
+		common.AffCommissionOnlyRealPay, _ = strconv.ParseBool(value)
 	case "QuotaRemindThreshold":
 		common.QuotaRemindThreshold, _ = strconv.Atoi(value)
 	case "PreConsumedQuota":

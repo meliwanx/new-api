@@ -156,6 +156,8 @@ func Recharge(referenceId string, customerId string, callerIp string) (err error
 
 	RecordTopupLog(topUp.UserId, fmt.Sprintf("使用在线充值成功，充值金额: %v，支付金额：%d", logger.FormatQuota(int(quota)), topUp.Amount), callerIp, topUp.PaymentMethod, PaymentMethodStripe)
 
+	DistributeReferralCommission(topUp.UserId, topUp.Money, int64(quota), topUp.TradeNo)
+
 	return nil
 }
 
@@ -387,6 +389,85 @@ func ManualCompleteTopUp(tradeNo string, callerIp string) error {
 
 	// 事务外记录日志，避免阻塞
 	RecordTopupLog(userId, fmt.Sprintf("管理员补单成功，充值金额: %v，支付金额：%f", logger.FormatQuota(quotaToAdd), payMoney), callerIp, paymentMethod, "admin")
+
+	DistributeReferralCommission(userId, payMoney, int64(quotaToAdd), tradeNo)
+	return nil
+}
+
+// RefundTopUp 退款冲正：将一笔已成功的充值订单标记为已退款，扣回到账额度（下限保护），
+// 并冲正该订单沿邀请链已发放的多级返佣。幂等：重复退款不会重复扣减。
+func RefundTopUp(tradeNo string, reason string) error {
+	if tradeNo == "" {
+		return errors.New("未提供订单号")
+	}
+
+	refCol := "`trade_no`"
+	if common.UsingPostgreSQL {
+		refCol = `"trade_no"`
+	}
+
+	var (
+		userId        int
+		quotaToDeduct int
+		money         float64
+		alreadyDone   bool
+	)
+
+	err := DB.Transaction(func(tx *gorm.DB) error {
+		topUp := &TopUp{}
+		if err := tx.Set("gorm:query_option", "FOR UPDATE").Where(refCol+" = ?", tradeNo).First(topUp).Error; err != nil {
+			return errors.New("充值订单不存在")
+		}
+
+		if topUp.Status == common.TopUpStatusRefunded {
+			alreadyDone = true
+			return nil // 幂等
+		}
+		if topUp.Status != common.TopUpStatusSuccess {
+			return errors.New("仅已成功的充值订单可退款")
+		}
+
+		// 还原与充值入账时一致的到账额度。
+		switch topUp.PaymentProvider {
+		case PaymentProviderCreem:
+			quotaToDeduct = int(topUp.Amount)
+		case PaymentProviderStripe:
+			quotaToDeduct = int(decimal.NewFromFloat(topUp.Money).Mul(decimal.NewFromFloat(common.QuotaPerUnit)).IntPart())
+		default:
+			quotaToDeduct = int(decimal.NewFromInt(topUp.Amount).Mul(decimal.NewFromFloat(common.QuotaPerUnit)).IntPart())
+		}
+
+		topUp.Status = common.TopUpStatusRefunded
+		if err := tx.Save(topUp).Error; err != nil {
+			return err
+		}
+
+		if quotaToDeduct > 0 {
+			// CASE WHEN 在 MySQL / PostgreSQL / SQLite 下均可用，避免余额被扣成负数。
+			if err := tx.Model(&User{}).Where("id = ?", topUp.UserId).Update("quota",
+				gorm.Expr("CASE WHEN quota >= ? THEN quota - ? ELSE 0 END", quotaToDeduct, quotaToDeduct)).Error; err != nil {
+				return err
+			}
+		}
+
+		userId = topUp.UserId
+		money = topUp.Money
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+	if alreadyDone {
+		return nil
+	}
+
+	RecordLog(userId, LogTypeSystem, fmt.Sprintf("充值退款：订单 %s（%s），扣回额度 %s，支付金额 %.2f",
+		tradeNo, reason, logger.LogQuota(quotaToDeduct), money))
+
+	// 冲正多级返佣。
+	if rerr := ReverseReferralCommissionByTradeNo(tradeNo, reason); rerr != nil {
+		common.SysError("reverse referral commission failed: " + rerr.Error())
+	}
 	return nil
 }
 func RechargeCreem(referenceId string, customerEmail string, customerName string, callerIp string) (err error) {
@@ -461,6 +542,8 @@ func RechargeCreem(referenceId string, customerEmail string, customerName string
 
 	RecordTopupLog(topUp.UserId, fmt.Sprintf("使用Creem充值成功，充值额度: %v，支付金额：%.2f", quota, topUp.Money), callerIp, topUp.PaymentMethod, PaymentMethodCreem)
 
+	DistributeReferralCommission(topUp.UserId, topUp.Money, quota, topUp.TradeNo)
+
 	return nil
 }
 
@@ -522,6 +605,7 @@ func RechargeWaffo(tradeNo string, callerIp string) (err error) {
 
 	if quotaToAdd > 0 {
 		RecordTopupLog(topUp.UserId, fmt.Sprintf("Waffo充值成功，充值额度: %v，支付金额: %.2f", logger.FormatQuota(quotaToAdd), topUp.Money), callerIp, topUp.PaymentMethod, PaymentMethodWaffo)
+		DistributeReferralCommission(topUp.UserId, topUp.Money, int64(quotaToAdd), topUp.TradeNo)
 	}
 
 	return nil
@@ -583,6 +667,7 @@ func RechargeWaffoPancake(tradeNo string) (err error) {
 
 	if quotaToAdd > 0 {
 		RecordLog(topUp.UserId, LogTypeTopup, fmt.Sprintf("Waffo Pancake充值成功，充值额度: %v，支付金额: %.2f", logger.FormatQuota(quotaToAdd), topUp.Money))
+		DistributeReferralCommission(topUp.UserId, topUp.Money, int64(quotaToAdd), topUp.TradeNo)
 	}
 
 	return nil

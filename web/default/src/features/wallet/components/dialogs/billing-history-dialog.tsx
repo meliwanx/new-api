@@ -72,14 +72,17 @@ export function BillingHistoryDialog({
     keyword,
     loading,
     completing,
+    refunding,
     isAdmin,
     handlePageChange,
     handlePageSizeChange,
     handleSearch,
     handleCompleteOrder,
+    handleRefundOrder,
   } = useBillingHistory()
 
   const [confirmTradeNo, setConfirmTradeNo] = useState<string | null>(null)
+  const [refundTradeNo, setRefundTradeNo] = useState<string | null>(null)
   const { copyToClipboard, copiedText } = useCopyToClipboard({ notify: false })
 
   const totalPages = Math.ceil(total / pageSize)
@@ -89,6 +92,15 @@ export function BillingHistoryDialog({
       const success = await handleCompleteOrder(confirmTradeNo)
       if (success) {
         setConfirmTradeNo(null)
+      }
+    }
+  }
+
+  const handleConfirmRefund = async () => {
+    if (refundTradeNo) {
+      const success = await handleRefundOrder(refundTradeNo)
+      if (success) {
+        setRefundTradeNo(null)
       }
     }
   }
@@ -270,6 +282,19 @@ export function BillingHistoryDialog({
                           </Button>
                         </div>
                       )}
+                      {isAdmin && record.status === 'success' && (
+                        <div className='mt-4 flex justify-end'>
+                          <Button
+                            size='sm'
+                            variant='outline'
+                            className='text-destructive hover:text-destructive'
+                            onClick={() => setRefundTradeNo(record.trade_no)}
+                            disabled={refunding}
+                          >
+                            {t('Refund')}
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   )
                 })}
@@ -337,6 +362,34 @@ export function BillingHistoryDialog({
               disabled={completing}
             >
               {completing ? t('Processing...') : t('Confirm')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Confirm Refund Order Dialog */}
+      <AlertDialog
+        open={!!refundTradeNo}
+        onOpenChange={(open) => !open && setRefundTradeNo(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('Refund Order')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t(
+                'Are you sure you want to refund this order? The credited quota will be deducted from the user, and any referral commissions distributed from this order will be reversed.'
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={refunding}>
+              {t('Cancel')}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmRefund}
+              disabled={refunding}
+            >
+              {refunding ? t('Processing...') : t('Confirm')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

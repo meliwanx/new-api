@@ -17,6 +17,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { SystemBehaviorSection } from '../general/system-behavior-section'
+import { AffiliateSettingsSection } from './affiliate-settings-section'
 import { EmailSettingsSection } from '../integrations/email-settings-section'
 import { MonitoringSettingsSection } from '../integrations/monitoring-settings-section'
 import { WorkerSettingsSection } from '../integrations/worker-settings-section'
@@ -59,6 +60,23 @@ const OPERATIONS_SECTIONS = [
             settings['monitor_setting.auto_test_channel_enabled'],
           'monitor_setting.auto_test_channel_minutes':
             settings['monitor_setting.auto_test_channel_minutes'],
+        }}
+      />
+    ),
+  },
+  {
+    id: 'affiliate',
+    titleKey: 'Multi-level Affiliate',
+    build: (settings: OperationsSettings) => (
+      <AffiliateSettingsSection
+        defaultValues={{
+          AffMultiLevelEnabled: settings.AffMultiLevelEnabled,
+          AffCommissionRateL1: settings.AffCommissionRateL1,
+          AffCommissionRateL2: settings.AffCommissionRateL2,
+          AffCommissionRateL3: settings.AffCommissionRateL3,
+          AffCommissionMinRecharge: settings.AffCommissionMinRecharge,
+          AffCommissionValidityDays: settings.AffCommissionValidityDays,
+          AffCommissionOnlyRealPay: settings.AffCommissionOnlyRealPay,
         }}
       />
     ),

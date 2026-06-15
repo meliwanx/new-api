@@ -245,9 +245,41 @@ export interface UserWalletData {
 }
 
 /**
+ * Affiliate summary level entry (multi-level referral)
+ */
+export interface AffiliateSummaryLevel {
+  /** Referral level (1 = direct invite, 2/3 = downstream) */
+  level: number
+  /** Number of users at this level */
+  count: number
+  /** Cumulative commission earned from this level (quota) */
+  commission: number
+  /** Configured commission rate for this level (0-1) */
+  rate: number
+}
+
+/**
+ * Multi-level affiliate summary for the current user
+ */
+export interface AffiliateSummary {
+  /** Whether multi-level referral is enabled */
+  enabled: boolean
+  /** Commission validity period in days from invitee registration (0 = forever) */
+  validity_days: number
+  /** Per-level breakdown */
+  levels: AffiliateSummaryLevel[]
+  /** Total commission across all levels (quota) */
+  total_commission: number
+  /** Total downstream team size across all levels */
+  total_team: number
+}
+
+export type AffiliateSummaryResponse = ApiResponse<AffiliateSummary>
+
+/**
  * Topup record status
  */
-export type TopupStatus = 'success' | 'pending' | 'expired'
+export type TopupStatus = 'success' | 'pending' | 'expired' | 'refunded'
 
 /**
  * Topup billing record
@@ -286,4 +318,12 @@ export interface BillingHistoryResponse {
  */
 export interface CompleteOrderRequest {
   trade_no: string
+}
+
+/**
+ * Refund order request (admin only)
+ */
+export interface RefundOrderRequest {
+  trade_no: string
+  reason?: string
 }
