@@ -52,6 +52,10 @@
 
 </div>
 
+> [!NOTE]
+> **本仓库是 [New API](https://github.com/QuantumNous/new-api) 的二次开发（fork）版本。** 在持续同步上游的前提下，新增了重设计前端、多级分销返佣系统与中转增强等功能，并尽量保持与上游版本的可合并性。
+> 上游同步、集群部署与运维细节见 `CLAUDE.md` / `AGENTS.md`（不含任何密钥）；服务器凭据只保存在本地未入库的 `DEPLOYMENT.local.md`。一键发布脚本见 `scripts/deploy-onlymeok.sh`。
+
 ## 📝 项目说明
 
 > [!IMPORTANT]

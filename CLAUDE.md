@@ -1,5 +1,31 @@
 # CLAUDE.md — new-api 项目约定
 
+## 项目背景与上游同步
+
+> **本仓库是 New API 的二次开发（fork）版本，不是上游本身。** 改任何代码都要以「能持续合并上游更新」为前提。
+
+- **上游 upstream**：`QuantumNous/new-api`（社区 New API，官方镜像 `calciumion/new-api`）。本仓库 fork 自上游。
+- **本仓库 origin**：`meliwanx/new-api`，主分支 `main`。（`git remote -v` 已配置好 `origin` + `upstream`）
+- **我们相对上游的主要改造**：
+  - 前端整体重设计（黑白科技感 / Vercel 风格，落地页重写）。
+  - 多级分销返佣：最多 3 级 + 退款冲正 + 后台可配比例/有效期，附用户端「分销商」页面（`web/default/src/features/affiliate/`）。
+  - 生图渠道失败重试等中转增强。
+- **保持可合并性的硬性约定**：
+  - 改动尽量隔离到**新文件 / 新目录**，少改上游既有文件；必须改时只做最小插入，不重命名/重排上游代码与导出。
+  - 前端严格遵循上游目录约定与 i18n 机制（key 即英文源串，改完在 `web/default/` 跑 `bun run i18n:sync`）。
+  - 数据库改动遵循下方「规则 2」，保证 SQLite/MySQL/PostgreSQL 三库兼容。
+- **同步上游更新的流程**：
+  ```bash
+  git fetch upstream
+  git checkout main
+  git merge upstream/main          # 或 git rebase upstream/main
+  # 冲突通常集中在：被改过的前端文件、i18n locales、go.mod
+  cd web/default && bun install && bun run build && cd ..
+  go build .                       # 验证后端可编译
+  git push origin main
+  ```
+  合并后必须本地跑通前后端构建，再按下方「快速打包部署」重新发布到集群。
+
 ## 概述
 
 这是一个用 Go 构建的 AI API 网关 / 中转服务。它把 40 多家上游 AI 供应商（OpenAI、Claude、Gemini、Azure、AWS Bedrock 等）聚合到统一的 API 之后，提供用户管理、计费、限流以及管理后台。
@@ -126,6 +152,18 @@ web/             — 前端主题容器
 > 与服务器上另外 3 个站点（未改源码、用官方镜像 `calciumion/new-api`）架构一致，仅本站使用本仓库源码构建的镜像。
 > **所有凭据（服务器 root 密码、数据库/Redis 密码、SESSION/CRYPTO 密钥）只保存在本地未入库文件 `DEPLOYMENT.local.md` 中，绝不提交到本公开仓库。**
 
+### ⚠️ 集群安全红线（绝不能影响其它站点）
+
+116/58 两台机器上**同时运行着多个互相独立的 NewAPI 站点**（如 cluster2、cluster3、官方主站等），它们与本站共用同一台宿主机和同一个 OpenResty 网关。任何部署操作都**只能**触碰本站（cluster4）专属资源：
+
+- **只动本站容器**：`newapi-cluster4-master` / `-postgres` / `-redis` / `newapi-cluster4-node-58`。严禁在其它 `/opt/newapi-*` 目录执行 `docker compose down/up`。
+- **严禁全局清理**：绝不使用 `docker system prune`、`docker image prune -a`、`docker volume prune`、`docker network prune` 等会波及其它站点的命令。清理旧镜像只 `docker rmi` 本站镜像。
+- **网关只增量改本站块**：`/opt/newapi-ingress/nginx.conf` 是所有站点共用的。改前先带时间戳备份；**只新增/修改 `onlymeok.com` 的 `upstream` 与 `server` 块**，不要碰其它站点的块；**必须原地改写（勿用 mv 换 inode，否则 host bind-mount 失效）**；`docker exec newapi-ingress openresty -t` 通过后再 `openresty -s reload`（平滑重载，不中断其它站点）。
+- **防火墙最小化**：firewalld 只为本站 DB/Redis 端口（`15434`/`16402`）放行来源 `116.142.250.58`，不改动其它规则。
+- **端口 / 库名唯一**：本站固定 `3103`/`15434`/`16402` 与库 `newapi4`，不与其它站点冲突；新增站点必须另选端口与库名。
+- **数据隔离**：本站数据只在 `/data/newapi-extra/cluster4*`，不要触碰其它目录。
+- 部署后除确认本站 200 外，顺手 `docker ps` 确认其它站点容器仍 `Up`。
+
 ### 服务器与拓扑
 
 - 主机 A（主节点）：`116.142.250.54`（root）—— 运行 app(master) + PostgreSQL + Redis + OpenResty 网关。
@@ -153,11 +191,32 @@ web/             — 前端主题容器
   - 容器内只编译 Go。
   - 由于服务器无法直连 `proxy.golang.org`，构建设置 `GOPROXY=https://goproxy.cn,direct`、`GOSUMDB=off`。
 
-### 发布 / 更新流程
+### 快速打包部署（推荐，一条命令）
 
-1. 本地：`cd web/default && bun run build`，再 `git archive` + 叠加 `dist` 与 `Dockerfile.deploy` 打成 tar 上传到 116。
-2. 116：`docker build -f Dockerfile.deploy -t new-api-onlymeok:latest .`
+仓库提供脚本 `scripts/deploy-onlymeok.sh`，一条命令完成：本地构建前端 → 打包上传 → 116 构建镜像 → master 滚动更新 → 镜像分发到 58 → node 滚动更新 → 健康检查。**脚本不含任何密码**，凭据通过环境变量传入（密码见本地 `DEPLOYMENT.local.md`）：
+
+```bash
+SSHPASS_MASTER='<116 root 密码>' SSHPASS_NODE='<58 root 密码>' ./scripts/deploy-onlymeok.sh
+```
+
+**为什么比手动逐步快很多：**
+- `Dockerfile.deploy` 已固定 `GOPROXY=https://goproxy.cn,direct` 与 `GOSUMDB=off`。只要不改 `Dockerfile.deploy` 与 `go.mod/go.sum`，`go mod download` 那层会命中 Docker 层缓存；改业务代码时只重编 `go build` 一层，镜像构建通常只要 20–40s（首次/改依赖才需完整拉取）。
+- 镜像分发优先走 **116→58 内网直传**（`docker save | ssh 58 docker load`），免去「116→本地→58」的双向公网中转（之前慢主要慢在这里 + 第一次构建因缺 GOPROXY 失败重来）。
+- 一次性免密可让内网直传免输密码（见下）。
+
+**一次性免密（让 116 免密 ssh 到 58，启用内网直传，仅需做一次）：**
+```bash
+# 在 116 生成密钥并打印公钥
+ssh root@116.142.250.54 'test -f ~/.ssh/id_ed25519 || ssh-keygen -t ed25519 -N "" -f ~/.ssh/id_ed25519; cat ~/.ssh/id_ed25519.pub'
+# 把输出的公钥追加到 58 的 ~/.ssh/authorized_keys
+```
+未配置免密时脚本会自动回退为「116→本地→58」中转，仍可用，只是稍慢。
+
+### 发布 / 更新流程（手动分步，脚本不可用时备用）
+
+1. 本地：`cd web/default && bun run build`，再把工作区（含 `dist` 与 `Dockerfile.deploy`、剔除 `.git`/`node_modules`）打成 tar 上传到 116。
+2. 116：解包到构建目录，去掉 `.dockerignore` 中对 `web/*/dist` 的忽略，`docker build -f Dockerfile.deploy -t new-api-onlymeok:latest -t new-api-onlymeok:<commit> .`
 3. 116：`cd /opt/newapi-cluster4 && docker compose up -d`
-4. 分发镜像到 58：116 `docker save | gzip` → 传输 → 58 `docker load`，再 `cd /opt/newapi-cluster4-node && docker compose up -d`
-5. 网关：改 `/opt/newapi-ingress/nginx.conf`（**原地改写、勿用 mv 换 inode**），`docker exec newapi-ingress openresty -t` 通过后 `openresty -s reload`
+4. 分发镜像到 58：116 `docker save | gzip`（优先 `| ssh 58 'docker load'` 内网直传，否则经本地中转）→ 58 `cd /opt/newapi-cluster4-node && docker compose up -d`
+5. 网关（**仅当新增/调整本站 server 块时**）：原地改 `/opt/newapi-ingress/nginx.conf` → `openresty -t` → `openresty -s reload`（日常仅更新镜像时无需动网关）
 6. 健康检查：`curl http://127.0.0.1:3103/api/status`、`curl http://116.142.250.58:3103/api/status`、`curl --resolve onlymeok.com:443:116.142.250.54 https://onlymeok.com/api/status`

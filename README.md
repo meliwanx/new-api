@@ -52,6 +52,10 @@
 
 </div>
 
+> [!NOTE]
+> **This repository is a customized fork of [New API](https://github.com/QuantumNous/new-api).** It tracks upstream while adding a redesigned frontend, a multi-level referral/commission system, and relay enhancements, and is kept mergeable with upstream releases.
+> Upstream-sync, cluster deployment, and ops details live in `CLAUDE.md` / `AGENTS.md` (no secrets); server credentials are kept only in the local, git-ignored `DEPLOYMENT.local.md`. One-command release script: `scripts/deploy-onlymeok.sh`.
+
 ## 📝 Project Description
 
 > [!IMPORTANT]
