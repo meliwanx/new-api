@@ -26,6 +26,7 @@ import {
   LayoutDashboard,
   ListTodo,
   MessageSquare,
+  Network,
   Radio,
   Settings,
   Ticket,
@@ -104,6 +105,11 @@ export function useSidebarData(): SidebarData {
             title: t('Wallet'),
             url: '/wallet',
             icon: Wallet,
+          },
+          {
+            title: t('Affiliate'),
+            url: '/affiliate',
+            icon: Network,
           },
           {
             title: t('Profile'),

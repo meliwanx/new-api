@@ -22,6 +22,7 @@ package model
 import (
 	"fmt"
 	"math"
+	"sort"
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/logger"
@@ -212,6 +213,129 @@ func GetReferralTeamCounts(userId int) ([3]int64, error) {
 		parentIds = children
 	}
 	return counts, nil
+}
+
+// ReferralInvitee 表示当前用户下线列表中的一条记录（用户端“分销商-邀请的用户”展示）。
+type ReferralInvitee struct {
+	UserId     int    `json:"user_id"`
+	Username   string `json:"username"`
+	Level      int    `json:"level"`
+	CreatedAt  int64  `json:"created_at"`
+	Commission int64  `json:"commission"` // “我”从该下线累计获得的有效返佣
+}
+
+// GetReferralInvitees 返回某用户向下 3 级的下线列表（分页），
+// 含每个下线的注册时间，以及“我”从其身上累计获得的有效返佣。
+func GetReferralInvitees(beneficiaryId, page, pageSize int) ([]ReferralInvitee, int64, error) {
+	if beneficiaryId == 0 {
+		return []ReferralInvitee{}, 0, nil
+	}
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 {
+		pageSize = 10
+	}
+
+	type lvlPair struct {
+		id    int
+		level int
+	}
+	pairs := make([]lvlPair, 0)
+	seen := map[int]bool{beneficiaryId: true}
+	parentIds := []int{beneficiaryId}
+	for level := 1; level <= 3; level++ {
+		if len(parentIds) == 0 {
+			break
+		}
+		var children []int
+		if err := DB.Model(&User{}).
+			Where("inviter_id IN ?", parentIds).
+			Pluck("id", &children).Error; err != nil {
+			return nil, 0, err
+		}
+		next := make([]int, 0, len(children))
+		for _, cid := range children {
+			if seen[cid] {
+				continue
+			}
+			seen[cid] = true
+			pairs = append(pairs, lvlPair{id: cid, level: level})
+			next = append(next, cid)
+		}
+		parentIds = next
+	}
+
+	total := int64(len(pairs))
+	sort.Slice(pairs, func(i, j int) bool {
+		if pairs[i].level != pairs[j].level {
+			return pairs[i].level < pairs[j].level
+		}
+		return pairs[i].id < pairs[j].id
+	})
+
+	start := (page - 1) * pageSize
+	if start >= len(pairs) {
+		return []ReferralInvitee{}, total, nil
+	}
+	end := start + pageSize
+	if end > len(pairs) {
+		end = len(pairs)
+	}
+	pagePairs := pairs[start:end]
+
+	pageIds := make([]int, len(pagePairs))
+	for i, p := range pagePairs {
+		pageIds[i] = p.id
+	}
+
+	type urow struct {
+		Id        int
+		Username  string
+		CreatedAt int64
+	}
+	var users []urow
+	if err := DB.Model(&User{}).
+		Select("id, username, created_at").
+		Where("id IN ?", pageIds).
+		Find(&users).Error; err != nil {
+		return nil, 0, err
+	}
+	userMap := make(map[int]urow, len(users))
+	for _, u := range users {
+		userMap[u.Id] = u
+	}
+
+	type crow struct {
+		SourceUserId int
+		Total        int64
+	}
+	var crows []crow
+	if err := DB.Model(&ReferralCommission{}).
+		Select("source_user_id, COALESCE(SUM(commission),0) as total").
+		Where("beneficiary_id = ? AND status = ? AND source_user_id IN ?",
+			beneficiaryId, ReferralCommissionStatusActive, pageIds).
+		Group("source_user_id").
+		Scan(&crows).Error; err != nil {
+		return nil, 0, err
+	}
+	commMap := make(map[int]int64, len(crows))
+	for _, c := range crows {
+		commMap[c.SourceUserId] = c.Total
+	}
+
+	result := make([]ReferralInvitee, 0, len(pagePairs))
+	for _, p := range pagePairs {
+		u := userMap[p.id]
+		result = append(result, ReferralInvitee{
+			UserId:     p.id,
+			Username:   u.Username,
+			Level:      p.level,
+			CreatedAt:  u.CreatedAt,
+			Commission: commMap[p.id],
+		})
+	}
+	return result, total, nil
 }
 
 // GetReferralCommissionSummary 返回某受益人各层级的有效返佣汇总（用户端“我的分销收益”展示）。

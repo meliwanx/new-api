@@ -23,6 +23,7 @@ import type {
   AmountRequest,
   AffiliateTransferRequest,
   AffiliateSummaryResponse,
+  AffiliateInviteesResponse,
   ApiResponse,
   TopupInfoResponse,
   RedemptionResponse,
@@ -193,6 +194,21 @@ export async function transferAffiliateQuota(
  */
 export async function getAffiliateSummary(): Promise<AffiliateSummaryResponse> {
   const res = await api.get('/api/user/aff/summary')
+  return res.data
+}
+
+/**
+ * Get paginated list of invited downstream users
+ */
+export async function getAffiliateInvitees(
+  page: number,
+  pageSize: number
+): Promise<AffiliateInviteesResponse> {
+  const params = new URLSearchParams({
+    p: page.toString(),
+    page_size: pageSize.toString(),
+  })
+  const res = await api.get(`/api/user/aff/invitees?${params.toString()}`)
   return res.data
 }
 

@@ -277,6 +277,29 @@ export interface AffiliateSummary {
 export type AffiliateSummaryResponse = ApiResponse<AffiliateSummary>
 
 /**
+ * A single invited downstream user (affiliate invitee list)
+ */
+export interface AffiliateInvitee {
+  /** Invitee user ID */
+  user_id: number
+  /** Invitee username */
+  username: string
+  /** Referral level relative to me (1 = direct, 2/3 = downstream) */
+  level: number
+  /** Invitee registration time (unix seconds) */
+  created_at: number
+  /** Commission I have earned from this invitee (quota) */
+  commission: number
+}
+
+export interface AffiliateInviteesData {
+  items: AffiliateInvitee[]
+  total: number
+}
+
+export type AffiliateInviteesResponse = ApiResponse<AffiliateInviteesData>
+
+/**
  * Topup record status
  */
 export type TopupStatus = 'success' | 'pending' | 'expired' | 'refunded'

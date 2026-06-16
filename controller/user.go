@@ -479,6 +479,37 @@ func GetAffiliateSummary(c *gin.Context) {
 	})
 }
 
+// GetAffiliateInvitees 返回当前用户的下线列表（分页），含注册时间与各下线贡献的返佣。
+func GetAffiliateInvitees(c *gin.Context) {
+	id := c.GetInt("id")
+	p, _ := strconv.Atoi(c.Query("p"))
+	if p < 1 {
+		p = 1
+	}
+	pageSize, _ := strconv.Atoi(c.Query("page_size"))
+	if pageSize < 1 {
+		pageSize = 10
+	}
+	if pageSize > 100 {
+		pageSize = 100
+	}
+
+	items, total, err := model.GetReferralInvitees(id, p, pageSize)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "",
+		"data": gin.H{
+			"items": items,
+			"total": total,
+		},
+	})
+}
+
 func GetSelf(c *gin.Context) {
 	id := c.GetInt("id")
 	userRole := c.GetInt("role")
