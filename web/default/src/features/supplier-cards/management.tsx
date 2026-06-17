@@ -24,20 +24,23 @@ import {
   Edit3,
   History,
   Save,
+  Search,
   Settings2,
   SlidersHorizontal,
   TicketPercent,
+  UserRoundCheck,
   WalletCards,
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
+import { getCurrencyLabel } from '@/lib/currency'
 import {
   formatCurrencyUSD,
   formatQuota,
   formatTimestampToDate,
   parseQuotaFromDollars,
 } from '@/lib/format'
-import { getCurrencyLabel } from '@/lib/currency'
+import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -91,6 +94,7 @@ import {
   adminGetSupplierCards,
   adminGetSupplierCardSettings,
   adminGetSupplierCardStats,
+  adminGetSupplierCardSuppliers,
   adminUpdateSupplierCardPlan,
   adminUpdateSupplierCardSettings,
 } from './api'
@@ -103,6 +107,8 @@ import {
   type SupplierCardPlanPayload,
   type SupplierCardQuotaAdjustPayload,
   type SupplierCardQuotaLogListParams,
+  type SupplierCardSupplier,
+  type SupplierCardSupplierListParams,
 } from './types'
 
 const LEVELS = Array.from({ length: 10 }, (_, index) => index + 1)
@@ -154,6 +160,18 @@ const defaultBalanceFilters: BalanceFilterState = {
   operatorUserId: '',
   createdFrom: '',
   createdTo: '',
+}
+
+type SupplierFilterState = {
+  page: number
+  keyword: string
+  supplierLevel: string
+}
+
+const defaultSupplierFilters: SupplierFilterState = {
+  page: 1,
+  keyword: '',
+  supplierLevel: 'all',
 }
 
 function numberOrUndefined(value: string) {
@@ -235,6 +253,20 @@ function buildBalanceLogParams(
   }
 }
 
+function buildSupplierParams(
+  filters: SupplierFilterState
+): SupplierCardSupplierListParams {
+  return {
+    p: filters.page,
+    page_size: PAGE_SIZE,
+    keyword: filters.keyword.trim(),
+    supplier_level:
+      filters.supplierLevel === 'all'
+        ? undefined
+        : numberOrUndefined(filters.supplierLevel),
+  }
+}
+
 function getBalanceActionLabel(action: string) {
   switch (action) {
     case 'admin_add':
@@ -247,6 +279,17 @@ function getBalanceActionLabel(action: string) {
       return 'Card Purchase'
     default:
       return action || 'Unknown'
+  }
+}
+
+function getSupplierStatusMeta(status: number) {
+  switch (status) {
+    case 1:
+      return { label: 'Enabled', variant: 'success' as const }
+    case 2:
+      return { label: 'Disabled', variant: 'neutral' as const }
+    default:
+      return { label: 'Unknown', variant: 'warning' as const }
   }
 }
 
@@ -428,16 +471,183 @@ function PlanForm({
   )
 }
 
+function SupplierBalanceTable({
+  suppliers,
+  filters,
+  isLoading,
+  selectedSupplierId,
+  updateFilter,
+  onSelect,
+}: {
+  suppliers: SupplierCardSupplier[]
+  filters: SupplierFilterState
+  isLoading: boolean
+  selectedSupplierId: number | null
+  updateFilter: (key: keyof SupplierFilterState, value: string) => void
+  onSelect: (supplierId: number) => void
+}) {
+  const { t } = useTranslation()
+
+  return (
+    <Card className='rounded-lg py-0'>
+      <CardHeader className='border-b py-4'>
+        <CardTitle>{t('Supplier Balances')}</CardTitle>
+        <CardDescription>
+          {t(
+            'List suppliers and adjust their dedicated card purchase balance.'
+          )}
+        </CardDescription>
+      </CardHeader>
+      <CardContent className='p-0'>
+        <div className='grid gap-3 border-b p-4 sm:grid-cols-[minmax(0,1fr)_180px]'>
+          <Field>
+            <FieldLabel>{t('Keyword')}</FieldLabel>
+            <Input
+              value={filters.keyword}
+              placeholder={t('Filter by supplier name, email, or ID...')}
+              onChange={(event) => updateFilter('keyword', event.target.value)}
+            />
+          </Field>
+          <Field>
+            <FieldLabel>{t('Supplier Level')}</FieldLabel>
+            <Select
+              value={filters.supplierLevel}
+              onValueChange={(value) =>
+                updateFilter('supplierLevel', value ?? 'all')
+              }
+            >
+              <SelectTrigger className='w-full'>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  <SelectItem value='all'>{t('All levels')}</SelectItem>
+                  {LEVELS.map((level) => (
+                    <SelectItem key={level} value={String(level)}>
+                      {t('Level {{level}}', { level })}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+          </Field>
+        </div>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>{t('ID')}</TableHead>
+              <TableHead>{t('Supplier')}</TableHead>
+              <TableHead>{t('Status')}</TableHead>
+              <TableHead>{t('Group')}</TableHead>
+              <TableHead>{t('Ordinary Balance')}</TableHead>
+              <TableHead>{t('Card Purchase Balance')}</TableHead>
+              <TableHead className='text-right'>{t('Actions')}</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {isLoading ? (
+              <TableRow>
+                <TableCell colSpan={7}>
+                  <Skeleton className='h-16 rounded-lg' />
+                </TableCell>
+              </TableRow>
+            ) : suppliers.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={7}>
+                  <Empty>
+                    <EmptyHeader>
+                      <EmptyMedia variant='icon'>
+                        <Search />
+                      </EmptyMedia>
+                      <EmptyTitle>{t('No suppliers found')}</EmptyTitle>
+                    </EmptyHeader>
+                  </Empty>
+                </TableCell>
+              </TableRow>
+            ) : (
+              suppliers.map((supplier) => {
+                const status = getSupplierStatusMeta(supplier.status)
+                const supplierName =
+                  supplier.display_name ||
+                  supplier.username ||
+                  `#${supplier.id}`
+                const isSelected = selectedSupplierId === supplier.id
+                return (
+                  <TableRow
+                    key={supplier.id}
+                    className={cn(
+                      'cursor-pointer',
+                      isSelected && 'bg-muted/50'
+                    )}
+                    onClick={() => onSelect(supplier.id)}
+                  >
+                    <TableCell className='font-mono'>#{supplier.id}</TableCell>
+                    <TableCell>
+                      <div className='min-w-0'>
+                        <div className='truncate font-medium'>
+                          {supplierName}
+                        </div>
+                        <div className='text-muted-foreground truncate text-xs'>
+                          {supplier.username}
+                          {supplier.email ? ` · ${supplier.email}` : ''}
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className='flex flex-wrap gap-1'>
+                        <StatusBadge
+                          label={t(status.label)}
+                          variant={status.variant}
+                          copyable={false}
+                        />
+                        <StatusBadge
+                          label={t('Level {{level}}', {
+                            level: supplier.supplier_level,
+                          })}
+                          variant='success'
+                          copyable={false}
+                        />
+                      </div>
+                    </TableCell>
+                    <TableCell>{supplier.group || '-'}</TableCell>
+                    <TableCell className='font-mono'>
+                      {formatQuota(supplier.quota)}
+                    </TableCell>
+                    <TableCell className='font-mono font-semibold'>
+                      {formatQuota(supplier.supplier_card_quota)}
+                    </TableCell>
+                    <TableCell className='text-right'>
+                      <Button
+                        variant={isSelected ? 'default' : 'outline'}
+                        size='sm'
+                        onClick={() => onSelect(supplier.id)}
+                      >
+                        <WalletCards data-icon='inline-start' />
+                        {t('Adjust Balance')}
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                )
+              })
+            )}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
+  )
+}
+
 function BalanceAdjustmentPanel({
+  supplier,
   saving,
   onAdjust,
 }: {
+  supplier: SupplierCardSupplier | null
   saving: boolean
   onAdjust: (payload: SupplierCardQuotaAdjustPayload) => void
 }) {
   const { t } = useTranslation()
   const currencyLabel = getCurrencyLabel()
-  const [userId, setUserId] = useState('')
   const [mode, setMode] =
     useState<SupplierCardQuotaAdjustPayload['mode']>('add')
   const [amount, setAmount] = useState('')
@@ -448,45 +658,76 @@ function BalanceAdjustmentPanel({
     mode === 'override'
       ? parseQuotaFromDollars(amountValue)
       : parseQuotaFromDollars(Math.abs(amountValue))
-  const parsedUserId = Number(userId)
   const canSubmit =
-    Number.isInteger(parsedUserId) &&
-    parsedUserId > 0 &&
+    supplier != null &&
     Number.isFinite(amountValue) &&
     (mode === 'override' ? parsedQuota >= 0 : parsedQuota > 0)
 
   const handleSubmit = () => {
-    if (!canSubmit) return
+    if (!canSubmit || supplier == null) return
     onAdjust({
-      user_id: parsedUserId,
+      user_id: supplier.id,
       mode,
       value: parsedQuota,
       memo: memo.trim(),
     })
   }
 
+  if (supplier == null) {
+    return (
+      <Card className='rounded-lg py-0'>
+        <CardHeader className='border-b py-4'>
+          <CardTitle>{t('Adjust Card Purchase Balance')}</CardTitle>
+          <CardDescription>
+            {t('Dedicated balance used by suppliers to buy cards.')}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className='p-4'>
+          <Empty>
+            <EmptyHeader>
+              <EmptyMedia variant='icon'>
+                <UserRoundCheck />
+              </EmptyMedia>
+              <EmptyTitle>{t('Select a supplier')}</EmptyTitle>
+            </EmptyHeader>
+          </Empty>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  const supplierName =
+    supplier.display_name || supplier.username || `#${supplier.id}`
+
   return (
     <Card className='rounded-lg py-0'>
       <CardHeader className='border-b py-4'>
-        <CardTitle>{t('Card Purchase Balance')}</CardTitle>
+        <CardTitle>{t('Adjust Card Purchase Balance')}</CardTitle>
         <CardDescription>
-          {t(
-            'Recharge or correct the dedicated balance suppliers use to buy cards.'
-          )}
+          {supplierName} · #{supplier.id}
         </CardDescription>
       </CardHeader>
       <CardContent className='flex flex-col gap-4 p-4'>
+        <div className='grid gap-3 sm:grid-cols-2'>
+          <div className='rounded-lg border p-3'>
+            <div className='text-muted-foreground text-xs'>
+              {t('Card Purchase Balance')}
+            </div>
+            <div className='mt-1 font-mono text-lg font-semibold'>
+              {formatQuota(supplier.supplier_card_quota)}
+            </div>
+          </div>
+          <div className='rounded-lg border p-3'>
+            <div className='text-muted-foreground text-xs'>
+              {t('Ordinary Balance')}
+            </div>
+            <div className='mt-1 font-mono text-lg font-semibold'>
+              {formatQuota(supplier.quota)}
+            </div>
+          </div>
+        </div>
         <FieldGroup className='gap-4'>
-          <div className='grid gap-3 sm:grid-cols-3'>
-            <Field>
-              <FieldLabel>{t('Supplier User ID')}</FieldLabel>
-              <Input
-                type='number'
-                min={1}
-                value={userId}
-                onChange={(event) => setUserId(event.target.value)}
-              />
-            </Field>
+          <div className='grid gap-3 sm:grid-cols-2'>
             <Field>
               <FieldLabel>{t('Mode')}</FieldLabel>
               <Select
@@ -550,8 +791,15 @@ export function SupplierCardManagement() {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
   const [filters, setFilters] = useState<FilterState>(defaultFilters)
-  const [balanceFilters, setBalanceFilters] =
-    useState<BalanceFilterState>(defaultBalanceFilters)
+  const [balanceFilters, setBalanceFilters] = useState<BalanceFilterState>(
+    defaultBalanceFilters
+  )
+  const [supplierFilters, setSupplierFilters] = useState<SupplierFilterState>(
+    defaultSupplierFilters
+  )
+  const [selectedSupplierId, setSelectedSupplierId] = useState<number | null>(
+    null
+  )
   const [maxPurchaseCountInput, setMaxPurchaseCountInput] = useState('')
 
   const cardParams = useMemo(() => buildCardParams(filters), [filters])
@@ -559,6 +807,10 @@ export function SupplierCardManagement() {
   const balanceLogParams = useMemo(
     () => buildBalanceLogParams(balanceFilters),
     [balanceFilters]
+  )
+  const supplierParams = useMemo(
+    () => buildSupplierParams(supplierFilters),
+    [supplierFilters]
   )
 
   const plansQuery = useQuery({
@@ -585,13 +837,19 @@ export function SupplierCardManagement() {
     queryKey: ['supplier-cards-admin', 'balance-logs', balanceLogParams],
     queryFn: () => adminGetSupplierCardQuotaLogs(balanceLogParams),
   })
+  const suppliersQuery = useQuery({
+    queryKey: ['supplier-cards-admin', 'suppliers', supplierParams],
+    queryFn: () => adminGetSupplierCardSuppliers(supplierParams),
+  })
 
   const maxPurchaseCount =
     maxPurchaseCountInput === ''
       ? (settingsQuery.data?.data?.max_purchase_count ?? 100)
       : Number(maxPurchaseCountInput)
   const maxPurchaseCountValue =
-    maxPurchaseCountInput === '' ? String(maxPurchaseCount) : maxPurchaseCountInput
+    maxPurchaseCountInput === ''
+      ? String(maxPurchaseCount)
+      : maxPurchaseCountInput
 
   const planMutation = useMutation({
     mutationFn: ({
@@ -641,6 +899,10 @@ export function SupplierCardManagement() {
   const orders = ordersQuery.data?.data
   const cards = cardsQuery.data?.data
   const balanceLogs = balanceLogsQuery.data?.data
+  const suppliers = suppliersQuery.data?.data
+  const selectedSupplier =
+    suppliers?.items.find((supplier) => supplier.id === selectedSupplierId) ??
+    null
   const totalOrderPages = Math.max(
     1,
     Math.ceil((orders?.total ?? 0) / PAGE_SIZE)
@@ -650,12 +912,25 @@ export function SupplierCardManagement() {
     1,
     Math.ceil((balanceLogs?.total ?? 0) / PAGE_SIZE)
   )
+  const totalSupplierPages = Math.max(
+    1,
+    Math.ceil((suppliers?.total ?? 0) / PAGE_SIZE)
+  )
 
   const updateFilter = (key: keyof FilterState, value: string) => {
     setFilters((current) => ({ ...current, [key]: value, page: 1 }))
   }
-  const updateBalanceFilter = (key: keyof BalanceFilterState, value: string) => {
+  const updateBalanceFilter = (
+    key: keyof BalanceFilterState,
+    value: string
+  ) => {
     setBalanceFilters((current) => ({ ...current, [key]: value, page: 1 }))
+  }
+  const updateSupplierFilter = (
+    key: keyof SupplierFilterState,
+    value: string
+  ) => {
+    setSupplierFilters((current) => ({ ...current, [key]: value, page: 1 }))
   }
 
   return (
@@ -770,10 +1045,31 @@ export function SupplierCardManagement() {
             </TabsContent>
 
             <TabsContent value='balances' className='flex flex-col gap-4'>
-              <BalanceAdjustmentPanel
-                saving={balanceMutation.isPending}
-                onAdjust={(payload) => balanceMutation.mutate(payload)}
-              />
+              <div className='grid gap-4 xl:grid-cols-[minmax(0,1fr)_390px]'>
+                <div className='flex flex-col gap-4'>
+                  <SupplierBalanceTable
+                    suppliers={suppliers?.items ?? []}
+                    filters={supplierFilters}
+                    isLoading={suppliersQuery.isLoading}
+                    selectedSupplierId={selectedSupplierId}
+                    updateFilter={updateSupplierFilter}
+                    onSelect={setSelectedSupplierId}
+                  />
+                  <PaginationBar
+                    page={supplierFilters.page}
+                    totalPages={totalSupplierPages}
+                    onPageChange={(page) =>
+                      setSupplierFilters((current) => ({ ...current, page }))
+                    }
+                  />
+                </div>
+                <BalanceAdjustmentPanel
+                  key={selectedSupplier?.id ?? 'no-supplier'}
+                  supplier={selectedSupplier}
+                  saving={balanceMutation.isPending}
+                  onAdjust={(payload) => balanceMutation.mutate(payload)}
+                />
+              </div>
               <BalanceFilterPanel
                 filters={balanceFilters}
                 updateFilter={updateBalanceFilter}
@@ -830,7 +1126,9 @@ export function SupplierCardManagement() {
                             <TableCell>#{movement.supplier_user_id}</TableCell>
                             <TableCell>
                               <StatusBadge
-                                label={t(getBalanceActionLabel(movement.action))}
+                                label={t(
+                                  getBalanceActionLabel(movement.action)
+                                )}
                                 variant={
                                   movement.action === 'purchase'
                                     ? 'neutral'

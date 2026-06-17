@@ -329,6 +329,7 @@ func SetApiRouter(router *gin.Engine) {
 				supplierCardAdminRoute.GET("/plans", controller.AdminListSupplierCardPlans)
 				supplierCardAdminRoute.POST("/plans", controller.AdminCreateSupplierCardPlan)
 				supplierCardAdminRoute.PUT("/plans/:id", controller.AdminUpdateSupplierCardPlan)
+				supplierCardAdminRoute.GET("/suppliers", controller.AdminListSupplierCardSuppliers)
 				supplierCardAdminRoute.GET("/orders", controller.AdminListSupplierCardOrders)
 				supplierCardAdminRoute.GET("/cards", controller.AdminListSupplierCards)
 				supplierCardAdminRoute.GET("/stats", controller.AdminGetSupplierCardStats)

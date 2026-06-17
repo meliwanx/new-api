@@ -70,6 +70,21 @@ type SupplierCardQuotaLog struct {
 	CreatedTime    int64  `json:"created_time" gorm:"bigint;index"`
 }
 
+type SupplierCardSupplier struct {
+	Id                int    `json:"id"`
+	Username          string `json:"username"`
+	DisplayName       string `json:"display_name"`
+	Email             string `json:"email"`
+	Status            int    `json:"status"`
+	Role              int    `json:"role"`
+	Group             string `json:"group"`
+	Quota             int    `json:"quota"`
+	SupplierLevel     int    `json:"supplier_level"`
+	SupplierCardQuota int    `json:"supplier_card_quota"`
+	CreatedAt         int64  `json:"created_at"`
+	LastLoginAt       int64  `json:"last_login_at"`
+}
+
 type SupplierCard struct {
 	Id                int     `json:"id"`
 	SupplierUserId    int     `json:"supplier_user_id" gorm:"index"`
@@ -135,6 +150,13 @@ type SupplierCardQuotaLogListQuery struct {
 	Keyword         string
 	CreatedTimeFrom int64
 	CreatedTimeTo   int64
+}
+
+type SupplierCardSupplierListQuery struct {
+	Page     int
+	PageSize int
+	Keyword  string
+	Level    *int
 }
 
 type SupplierCardStats struct {
@@ -377,6 +399,63 @@ func normalizeSupplierCardPagination(page int, pageSize int) (int, int) {
 		pageSize = 100
 	}
 	return page, pageSize
+}
+
+func supplierCardSupplierFromUser(user *User) *SupplierCardSupplier {
+	return &SupplierCardSupplier{
+		Id:                user.Id,
+		Username:          user.Username,
+		DisplayName:       user.DisplayName,
+		Email:             user.Email,
+		Status:            user.Status,
+		Role:              user.Role,
+		Group:             user.Group,
+		Quota:             user.Quota,
+		SupplierLevel:     user.SupplierLevel,
+		SupplierCardQuota: user.SupplierCardQuota,
+		CreatedAt:         user.CreatedAt,
+		LastLoginAt:       user.LastLoginAt,
+	}
+}
+
+func supplierCardContainsPattern(keyword string) string {
+	keyword = strings.TrimSpace(keyword)
+	keyword = strings.ReplaceAll(keyword, "!", "!!")
+	keyword = strings.ReplaceAll(keyword, "%", "!%")
+	keyword = strings.ReplaceAll(keyword, "_", "!_")
+	return "%" + keyword + "%"
+}
+
+func ListSupplierCardSuppliers(query SupplierCardSupplierListQuery) ([]*SupplierCardSupplier, int64, error) {
+	page, pageSize := normalizeSupplierCardPagination(query.Page, query.PageSize)
+	db := DB.Model(&User{}).Where("supplier_level > ?", 0)
+	if query.Level != nil {
+		db = db.Where("supplier_level = ?", *query.Level)
+	}
+	keyword := strings.TrimSpace(query.Keyword)
+	if keyword != "" {
+		pattern := supplierCardContainsPattern(keyword)
+		keywordID, err := strconv.Atoi(keyword)
+		if err == nil {
+			db = db.Where("id = ? OR username LIKE ? ESCAPE '!' OR email LIKE ? ESCAPE '!' OR display_name LIKE ? ESCAPE '!'", keywordID, pattern, pattern, pattern)
+		} else {
+			db = db.Where("username LIKE ? ESCAPE '!' OR email LIKE ? ESCAPE '!' OR display_name LIKE ? ESCAPE '!'", pattern, pattern, pattern)
+		}
+	}
+
+	var total int64
+	if err := db.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+	var users []*User
+	if err := db.Omit("password").Order("id desc").Limit(pageSize).Offset((page - 1) * pageSize).Find(&users).Error; err != nil {
+		return nil, 0, err
+	}
+	items := make([]*SupplierCardSupplier, 0, len(users))
+	for _, user := range users {
+		items = append(items, supplierCardSupplierFromUser(user))
+	}
+	return items, total, nil
 }
 
 func PurchaseSupplierCards(userID int, planID int, count int, maxCount int) (*SupplierCardOrder, []*SupplierCard, error) {

@@ -71,6 +71,21 @@ export interface SupplierCardUser {
   supplier_level: number
 }
 
+export interface SupplierCardSupplier {
+  id: number
+  username: string
+  display_name: string
+  email: string
+  status: number
+  role: number
+  group: string
+  quota: number
+  supplier_card_quota: number
+  supplier_level: number
+  created_at: number
+  last_login_at: number
+}
+
 export interface SupplierCardPlansResponse {
   supplier_level: number
   supplier_card_quota: number
@@ -156,6 +171,13 @@ export interface SupplierCardQuotaLogListParams {
   keyword?: string
   created_time_from?: number
   created_time_to?: number
+}
+
+export interface SupplierCardSupplierListParams {
+  p?: number
+  page_size?: number
+  keyword?: string
+  supplier_level?: number
 }
 
 export interface SupplierCardStatsByAmount {

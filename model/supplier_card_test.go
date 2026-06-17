@@ -250,3 +250,42 @@ func TestAdjustSupplierCardQuotaRejectsNormalUser(t *testing.T) {
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "not a supplier")
 }
+
+func TestListSupplierCardSuppliersReturnsOnlySuppliersAndSearchesKeyword(t *testing.T) {
+	truncateTables(t)
+	cleanupSupplierCardTables(t)
+	alpha := seedSupplierUser(t, DB, 1, 1, 1000, 2000)
+	beta := seedSupplierUser(t, DB, 2, 3, 3000, 4000)
+	beta.Username = "beta_supplier"
+	beta.DisplayName = "Beta Supplier"
+	beta.Email = "beta@example.com"
+	require.NoError(t, DB.Save(beta).Error)
+	normal := seedSupplierUser(t, DB, 3, 0, 5000, 6000)
+
+	items, total, err := ListSupplierCardSuppliers(SupplierCardSupplierListQuery{
+		Page:     1,
+		PageSize: 10,
+	})
+
+	require.NoError(t, err)
+	require.Equal(t, int64(2), total)
+	require.Len(t, items, 2)
+	require.Equal(t, beta.Id, items[0].Id)
+	require.Equal(t, alpha.Id, items[1].Id)
+	require.NotEqual(t, normal.Id, items[0].Id)
+	require.Equal(t, 4000, items[0].SupplierCardQuota)
+	require.Equal(t, 3000, items[0].Quota)
+
+	searched, searchTotal, err := ListSupplierCardSuppliers(SupplierCardSupplierListQuery{
+		Page:     1,
+		PageSize: 10,
+		Keyword:  "beta",
+	})
+
+	require.NoError(t, err)
+	require.Equal(t, int64(1), searchTotal)
+	require.Len(t, searched, 1)
+	require.Equal(t, beta.Id, searched[0].Id)
+	require.Equal(t, "Beta Supplier", searched[0].DisplayName)
+	require.Equal(t, "beta@example.com", searched[0].Email)
+}

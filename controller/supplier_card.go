@@ -312,6 +312,28 @@ func AdminListSupplierCardOrders(c *gin.Context) {
 	common.ApiSuccess(c, pageInfo)
 }
 
+func AdminListSupplierCardSuppliers(c *gin.Context) {
+	pageInfo := common.GetPageQuery(c)
+	level, err := parseOptionalIntQuery(c, "supplier_level")
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	items, total, err := model.ListSupplierCardSuppliers(model.SupplierCardSupplierListQuery{
+		Page:     pageInfo.GetPage(),
+		PageSize: pageInfo.GetPageSize(),
+		Keyword:  c.Query("keyword"),
+		Level:    level,
+	})
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	pageInfo.SetTotal(int(total))
+	pageInfo.SetItems(items)
+	common.ApiSuccess(c, pageInfo)
+}
+
 func AdminAdjustSupplierCardQuota(c *gin.Context) {
 	var req supplierCardQuotaAdjustRequest
 	if err := common.DecodeJson(c.Request.Body, &req); err != nil {

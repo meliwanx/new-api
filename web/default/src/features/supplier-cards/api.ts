@@ -37,6 +37,8 @@ import type {
   SupplierCardSettings,
   SupplierCardShare,
   SupplierCardStats,
+  SupplierCardSupplier,
+  SupplierCardSupplierListParams,
   SupplierCardUser,
 } from './types'
 
@@ -153,6 +155,14 @@ export async function adminGetSupplierCardQuotaLogs(
 ): Promise<ApiResponse<SupplierCardPageResponse<SupplierCardQuotaLog>>> {
   const query = buildSearchParams({ p: 1, page_size: 10, ...params })
   const res = await api.get(`/api/supplier-cards/admin/balance-logs?${query}`)
+  return res.data
+}
+
+export async function adminGetSupplierCardSuppliers(
+  params: SupplierCardSupplierListParams = {}
+): Promise<ApiResponse<SupplierCardPageResponse<SupplierCardSupplier>>> {
+  const query = buildSearchParams({ p: 1, page_size: 10, ...params })
+  const res = await api.get(`/api/supplier-cards/admin/suppliers?${query}`)
   return res.data
 }
 

@@ -80,3 +80,56 @@ func TestGetSupplierCardShareOmitsFullSecrets(t *testing.T) {
 	require.NotContains(t, data, "code")
 	require.NotContains(t, data, "share_token")
 }
+
+func TestAdminListSupplierCardSuppliersReturnsSafeSupplierSummaries(t *testing.T) {
+	db := setupSupplierCardControllerTestDB(t)
+	require.NoError(t, db.Create(&model.User{
+		Id:                1,
+		Username:          "normal",
+		DisplayName:       "Normal User",
+		Password:          "normal_password",
+		Status:            common.UserStatusEnabled,
+		Quota:             1000,
+		SupplierLevel:     0,
+		SupplierCardQuota: 9000,
+		AffCode:           "aff_normal",
+	}).Error)
+	require.NoError(t, db.Create(&model.User{
+		Id:                2,
+		Username:          "supplier",
+		DisplayName:       "Supplier User",
+		Email:             "supplier@example.com",
+		Password:          "supplier_password",
+		Status:            common.UserStatusEnabled,
+		Quota:             2000,
+		SupplierLevel:     2,
+		SupplierCardQuota: 3000,
+		AffCode:           "aff_supplier",
+	}).Error)
+
+	recorder := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(recorder)
+	ctx.Request = httptest.NewRequest(http.MethodGet, "/api/supplier-cards/admin/suppliers?keyword=supplier&p=1&page_size=10", nil)
+
+	AdminListSupplierCardSuppliers(ctx)
+
+	require.Equal(t, http.StatusOK, recorder.Code)
+	var payload map[string]any
+	require.NoError(t, common.Unmarshal(recorder.Body.Bytes(), &payload))
+	require.Equal(t, true, payload["success"])
+	data, ok := payload["data"].(map[string]any)
+	require.True(t, ok)
+	require.Equal(t, float64(1), data["total"])
+	items, ok := data["items"].([]any)
+	require.True(t, ok)
+	require.Len(t, items, 1)
+	item, ok := items[0].(map[string]any)
+	require.True(t, ok)
+	require.Equal(t, float64(2), item["id"])
+	require.Equal(t, "supplier", item["username"])
+	require.Equal(t, "Supplier User", item["display_name"])
+	require.Equal(t, "supplier@example.com", item["email"])
+	require.Equal(t, float64(2), item["supplier_level"])
+	require.Equal(t, float64(3000), item["supplier_card_quota"])
+	require.NotContains(t, item, "password")
+}
