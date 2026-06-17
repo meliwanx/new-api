@@ -47,6 +47,9 @@ func TestMain(m *testing.M) {
 		&UserSubscription{},
 		&PerfMetric{},
 		&InvoiceRequest{},
+		&SupplierCardPlan{},
+		&SupplierCardOrder{},
+		&SupplierCard{},
 	); err != nil {
 		panic("failed to migrate: " + err.Error())
 	}
@@ -69,6 +72,9 @@ func truncateTables(t *testing.T) {
 		DB.Exec("DELETE FROM user_subscriptions")
 		DB.Exec("DELETE FROM perf_metrics")
 		DB.Exec("DELETE FROM invoice_requests")
+		DB.Exec("DELETE FROM supplier_cards")
+		DB.Exec("DELETE FROM supplier_card_orders")
+		DB.Exec("DELETE FROM supplier_card_plans")
 	})
 }
 

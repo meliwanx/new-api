@@ -1,0 +1,511 @@
+package model
+
+import (
+	"errors"
+	"fmt"
+	"math"
+	"strconv"
+	"strings"
+
+	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/logger"
+
+	"gorm.io/gorm"
+)
+
+const (
+	SupplierCardStatusUnused   = 1
+	SupplierCardStatusRedeemed = 2
+	SupplierCardStatusDisabled = 3
+)
+
+const DefaultSupplierCardMaxPurchaseCount = 100
+
+type SupplierCardPlan struct {
+	Id          int            `json:"id"`
+	Amount      int64          `json:"amount" gorm:"not null;uniqueIndex:uk_supplier_card_plan_amount_delete_at,priority:1"`
+	Quota       int            `json:"quota" gorm:"not null;default:0"`
+	Enabled     bool           `json:"enabled" gorm:"default:true"`
+	SortOrder   int            `json:"sort_order" gorm:"default:0"`
+	Prices      string         `json:"prices" gorm:"type:text;not null"`
+	CreatedTime int64          `json:"created_time" gorm:"bigint"`
+	UpdatedTime int64          `json:"updated_time" gorm:"bigint"`
+	DeletedAt   gorm.DeletedAt `json:"-" gorm:"index;uniqueIndex:uk_supplier_card_plan_amount_delete_at,priority:2"`
+}
+
+type SupplierCardOrder struct {
+	Id              int     `json:"id"`
+	OrderNo         string  `json:"order_no" gorm:"type:varchar(64);uniqueIndex"`
+	SupplierUserId  int     `json:"supplier_user_id" gorm:"index"`
+	SupplierLevel   int     `json:"supplier_level" gorm:"index"`
+	PlanId          int     `json:"plan_id" gorm:"index"`
+	Amount          int64   `json:"amount" gorm:"index"`
+	Quota           int     `json:"quota"`
+	Count           int     `json:"count"`
+	UnitPrice       float64 `json:"unit_price"`
+	TotalPrice      float64 `json:"total_price"`
+	TotalDebitQuota int     `json:"total_debit_quota"`
+	CreatedTime     int64   `json:"created_time" gorm:"bigint;index"`
+}
+
+type SupplierCard struct {
+	Id                int     `json:"id"`
+	SupplierUserId    int     `json:"supplier_user_id" gorm:"index"`
+	SupplierLevel     int     `json:"supplier_level" gorm:"index"`
+	OrderId           int     `json:"order_id" gorm:"index"`
+	OrderNo           string  `json:"order_no" gorm:"type:varchar(64);index"`
+	PlanId            int     `json:"plan_id" gorm:"index"`
+	Amount            int64   `json:"amount" gorm:"index"`
+	Quota             int     `json:"quota"`
+	PurchasePrice     float64 `json:"purchase_price"`
+	DebitQuota        int     `json:"debit_quota"`
+	Code              string  `json:"code" gorm:"type:varchar(64);uniqueIndex"`
+	CodePreview       string  `json:"code_preview" gorm:"type:varchar(32);index"`
+	ShareToken        string  `json:"share_token" gorm:"type:varchar(64);uniqueIndex"`
+	ShareTokenPreview string  `json:"share_token_preview" gorm:"type:varchar(32);index"`
+	Status            int     `json:"status" gorm:"default:1;index"`
+	RedeemedUserId    int     `json:"redeemed_user_id" gorm:"index"`
+	RedeemedTime      int64   `json:"redeemed_time" gorm:"bigint"`
+	CreatedTime       int64   `json:"created_time" gorm:"bigint;index"`
+	UpdatedTime       int64   `json:"updated_time" gorm:"bigint"`
+}
+
+type SupplierCardListQuery struct {
+	Page       int
+	PageSize   int
+	Status     *int
+	UnusedOnly *bool
+	Keyword    string
+}
+
+type SupplierCardAdminListQuery struct {
+	Page             int
+	PageSize         int
+	Status           *int
+	Amount           *int64
+	SupplierLevel    *int
+	SupplierUserId   *int
+	RedeemedUserId   *int
+	Keyword          string
+	CreatedTimeFrom  int64
+	CreatedTimeTo    int64
+	RedeemedTimeFrom int64
+	RedeemedTimeTo   int64
+}
+
+type SupplierCardStats struct {
+	TotalSales    float64                     `json:"total_sales"`
+	SoldCount     int64                       `json:"sold_count"`
+	RedeemedCount int64                       `json:"redeemed_count"`
+	UnusedCount   int64                       `json:"unused_count"`
+	DisabledCount int64                       `json:"disabled_count"`
+	ByAmount      []SupplierCardStatsByAmount `json:"by_amount"`
+	ByLevel       []SupplierCardStatsByLevel  `json:"by_level"`
+}
+
+type SupplierCardStatsByAmount struct {
+	Amount float64 `json:"amount"`
+	Count  int64   `json:"count"`
+	Sales  float64 `json:"sales"`
+}
+
+type SupplierCardStatsByLevel struct {
+	SupplierLevel int     `json:"supplier_level"`
+	Count         int64   `json:"count"`
+	Sales         float64 `json:"sales"`
+}
+
+func ValidateSupplierLevel(level int) error {
+	if level < 0 || level > 10 {
+		return errors.New("supplier level must be between 0 and 10")
+	}
+	return nil
+}
+
+func (p *SupplierCardPlan) BeforeCreate(tx *gorm.DB) error {
+	now := common.GetTimestamp()
+	if p.CreatedTime == 0 {
+		p.CreatedTime = now
+	}
+	p.UpdatedTime = now
+	if p.Quota == 0 && p.Amount > 0 {
+		p.Quota = int(math.Round(float64(p.Amount) * common.QuotaPerUnit))
+	}
+	return nil
+}
+
+func (p *SupplierCardPlan) BeforeUpdate(tx *gorm.DB) error {
+	p.UpdatedTime = common.GetTimestamp()
+	if p.Amount > 0 {
+		p.Quota = int(math.Round(float64(p.Amount) * common.QuotaPerUnit))
+	}
+	return nil
+}
+
+func (p *SupplierCardPlan) PriceMap() (map[string]float64, error) {
+	prices := map[string]float64{}
+	if strings.TrimSpace(p.Prices) == "" {
+		return prices, nil
+	}
+	if err := common.UnmarshalJsonStr(p.Prices, &prices); err != nil {
+		return nil, fmt.Errorf("invalid supplier card prices: %w", err)
+	}
+	return prices, nil
+}
+
+func (p *SupplierCardPlan) PriceForLevel(level int) (float64, error) {
+	if err := ValidateSupplierLevel(level); err != nil {
+		return 0, err
+	}
+	if level == 0 {
+		return 0, errors.New("not a supplier")
+	}
+	prices, err := p.PriceMap()
+	if err != nil {
+		return 0, err
+	}
+	price, ok := prices[strconv.Itoa(level)]
+	if !ok {
+		return 0, fmt.Errorf("missing supplier card price for level %d", level)
+	}
+	if price < 0 {
+		return 0, fmt.Errorf("invalid supplier card price for level %d", level)
+	}
+	return price, nil
+}
+
+func NormalizeSupplierCardPrices(prices map[string]float64) (string, error) {
+	if len(prices) == 0 {
+		return "", errors.New("supplier card prices are required")
+	}
+	for level := 1; level <= 10; level++ {
+		key := strconv.Itoa(level)
+		price, ok := prices[key]
+		if !ok {
+			return "", fmt.Errorf("missing supplier card price for level %d", level)
+		}
+		if price < 0 {
+			return "", fmt.Errorf("invalid supplier card price for level %d", level)
+		}
+	}
+	data, err := common.Marshal(prices)
+	if err != nil {
+		return "", err
+	}
+	return string(data), nil
+}
+
+func buildSupplierCardOrderNo(userID int) string {
+	return fmt.Sprintf("SC%d%s", userID, common.GetRandomString(18))
+}
+
+func buildSupplierCardCode() string {
+	return strings.ToUpper(common.GetRandomString(24))
+}
+
+func buildSupplierCardShareToken() string {
+	return common.GetUUID()
+}
+
+func previewSupplierCardSecret(value string) string {
+	if len(value) <= 10 {
+		return value
+	}
+	return value[:4] + "..." + value[len(value)-4:]
+}
+
+func debitQuotaForPrice(price float64) int {
+	return int(math.Round(price * common.QuotaPerUnit))
+}
+
+func normalizeSupplierCardPagination(page int, pageSize int) (int, int) {
+	if page <= 0 {
+		page = 1
+	}
+	if pageSize <= 0 {
+		pageSize = 10
+	}
+	if pageSize > 100 {
+		pageSize = 100
+	}
+	return page, pageSize
+}
+
+func PurchaseSupplierCards(userID int, planID int, count int, maxCount int) (*SupplierCardOrder, []*SupplierCard, error) {
+	if userID <= 0 {
+		return nil, nil, errors.New("invalid user id")
+	}
+	if planID <= 0 {
+		return nil, nil, errors.New("invalid supplier card plan")
+	}
+	if maxCount <= 0 {
+		maxCount = DefaultSupplierCardMaxPurchaseCount
+	}
+	if count <= 0 || count > maxCount {
+		return nil, nil, fmt.Errorf("count must be between 1 and %d", maxCount)
+	}
+
+	var order *SupplierCardOrder
+	var cards []*SupplierCard
+	err := DB.Transaction(func(tx *gorm.DB) error {
+		user := &User{}
+		if err := tx.Set("gorm:query_option", "FOR UPDATE").First(user, "id = ?", userID).Error; err != nil {
+			return err
+		}
+		if err := ValidateSupplierLevel(user.SupplierLevel); err != nil {
+			return err
+		}
+		if user.SupplierLevel == 0 {
+			return errors.New("not a supplier")
+		}
+
+		plan := &SupplierCardPlan{}
+		if err := tx.First(plan, "id = ?", planID).Error; err != nil {
+			return errors.New("supplier card plan not found")
+		}
+		if !plan.Enabled {
+			return errors.New("supplier card plan is disabled")
+		}
+		unitPrice, err := plan.PriceForLevel(user.SupplierLevel)
+		if err != nil {
+			return err
+		}
+		totalPrice := unitPrice * float64(count)
+		totalDebitQuota := debitQuotaForPrice(totalPrice)
+		if totalDebitQuota <= 0 {
+			return errors.New("supplier card price is too low")
+		}
+		if user.Quota < totalDebitQuota {
+			return errors.New("insufficient balance")
+		}
+
+		now := common.GetTimestamp()
+		order = &SupplierCardOrder{
+			OrderNo:         buildSupplierCardOrderNo(userID),
+			SupplierUserId:  userID,
+			SupplierLevel:   user.SupplierLevel,
+			PlanId:          plan.Id,
+			Amount:          plan.Amount,
+			Quota:           plan.Quota,
+			Count:           count,
+			UnitPrice:       unitPrice,
+			TotalPrice:      totalPrice,
+			TotalDebitQuota: totalDebitQuota,
+			CreatedTime:     now,
+		}
+		if err := tx.Create(order).Error; err != nil {
+			return err
+		}
+
+		if err := tx.Model(&User{}).Where("id = ?", userID).Update("quota", gorm.Expr("quota - ?", totalDebitQuota)).Error; err != nil {
+			return err
+		}
+
+		perCardDebitQuota := debitQuotaForPrice(unitPrice)
+		cards = make([]*SupplierCard, 0, count)
+		for i := 0; i < count; i++ {
+			code := buildSupplierCardCode()
+			shareToken := buildSupplierCardShareToken()
+			cards = append(cards, &SupplierCard{
+				SupplierUserId:    userID,
+				SupplierLevel:     user.SupplierLevel,
+				OrderId:           order.Id,
+				OrderNo:           order.OrderNo,
+				PlanId:            plan.Id,
+				Amount:            plan.Amount,
+				Quota:             plan.Quota,
+				PurchasePrice:     unitPrice,
+				DebitQuota:        perCardDebitQuota,
+				Code:              code,
+				CodePreview:       previewSupplierCardSecret(code),
+				ShareToken:        shareToken,
+				ShareTokenPreview: previewSupplierCardSecret(shareToken),
+				Status:            SupplierCardStatusUnused,
+				CreatedTime:       now,
+				UpdatedTime:       now,
+			})
+		}
+		return tx.Create(&cards).Error
+	})
+	if err != nil {
+		return nil, nil, err
+	}
+
+	RecordLog(userID, LogTypeTopup, fmt.Sprintf("供应商购买充值卡 %d 张，面额 %s，扣除 %s", len(cards), logger.LogQuota(order.Quota), logger.LogQuota(order.TotalDebitQuota)))
+	return order, cards, nil
+}
+
+func RedeemSupplierCardByShareToken(shareToken string, userID int) (*SupplierCard, error) {
+	shareToken = strings.TrimSpace(shareToken)
+	if shareToken == "" {
+		return nil, errors.New("invalid supplier card token")
+	}
+	if userID <= 0 {
+		return nil, errors.New("invalid user id")
+	}
+
+	card := &SupplierCard{}
+	err := DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Set("gorm:query_option", "FOR UPDATE").First(card, "share_token = ?", shareToken).Error; err != nil {
+			return errors.New("supplier card not found")
+		}
+		switch card.Status {
+		case SupplierCardStatusUnused:
+		case SupplierCardStatusRedeemed:
+			return errors.New("supplier card already redeemed")
+		case SupplierCardStatusDisabled:
+			return errors.New("supplier card disabled")
+		default:
+			return errors.New("supplier card status invalid")
+		}
+		if err := tx.Model(&User{}).Where("id = ?", userID).Update("quota", gorm.Expr("quota + ?", card.Quota)).Error; err != nil {
+			return err
+		}
+		now := common.GetTimestamp()
+		card.Status = SupplierCardStatusRedeemed
+		card.RedeemedUserId = userID
+		card.RedeemedTime = now
+		card.UpdatedTime = now
+		return tx.Save(card).Error
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	RecordLog(userID, LogTypeTopup, fmt.Sprintf("通过供应商充值卡兑换 %s，卡片ID %d", logger.LogQuota(card.Quota), card.Id))
+	return card, nil
+}
+
+func applySupplierCardKeyword(query *gorm.DB, keyword string) (*gorm.DB, error) {
+	keyword = strings.TrimSpace(keyword)
+	if keyword == "" {
+		return query, nil
+	}
+	pattern, err := sanitizeLikePattern(keyword)
+	if err != nil {
+		return nil, err
+	}
+	return query.Where(
+		"code LIKE ? ESCAPE '!' OR code_preview LIKE ? ESCAPE '!' OR share_token LIKE ? ESCAPE '!' OR share_token_preview LIKE ? ESCAPE '!' OR order_no LIKE ? ESCAPE '!'",
+		pattern, pattern, pattern, pattern, pattern,
+	), nil
+}
+
+func ListSupplierCards(userID int, query SupplierCardListQuery) ([]*SupplierCard, int64, error) {
+	page, pageSize := normalizeSupplierCardPagination(query.Page, query.PageSize)
+	db := DB.Model(&SupplierCard{}).Where("supplier_user_id = ?", userID)
+	if query.UnusedOnly != nil && *query.UnusedOnly {
+		db = db.Where("status = ?", SupplierCardStatusUnused)
+	} else if query.Status != nil {
+		db = db.Where("status = ?", *query.Status)
+	}
+	var err error
+	db, err = applySupplierCardKeyword(db, query.Keyword)
+	if err != nil {
+		return nil, 0, err
+	}
+	var total int64
+	if err := db.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+	var cards []*SupplierCard
+	if err := db.Order("id desc").Limit(pageSize).Offset((page - 1) * pageSize).Find(&cards).Error; err != nil {
+		return nil, 0, err
+	}
+	return cards, total, nil
+}
+
+func ListAdminSupplierCards(query SupplierCardAdminListQuery) ([]*SupplierCard, int64, error) {
+	page, pageSize := normalizeSupplierCardPagination(query.Page, query.PageSize)
+	db := DB.Model(&SupplierCard{})
+	db = applySupplierCardAdminFilters(db, query)
+	var err error
+	db, err = applySupplierCardKeyword(db, query.Keyword)
+	if err != nil {
+		return nil, 0, err
+	}
+	var total int64
+	if err := db.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+	var cards []*SupplierCard
+	if err := db.Order("id desc").Limit(pageSize).Offset((page - 1) * pageSize).Find(&cards).Error; err != nil {
+		return nil, 0, err
+	}
+	return cards, total, nil
+}
+
+func applySupplierCardAdminFilters(db *gorm.DB, query SupplierCardAdminListQuery) *gorm.DB {
+	if query.Status != nil {
+		db = db.Where("status = ?", *query.Status)
+	}
+	if query.Amount != nil {
+		db = db.Where("amount = ?", *query.Amount)
+	}
+	if query.SupplierLevel != nil {
+		db = db.Where("supplier_level = ?", *query.SupplierLevel)
+	}
+	if query.SupplierUserId != nil {
+		db = db.Where("supplier_user_id = ?", *query.SupplierUserId)
+	}
+	if query.RedeemedUserId != nil {
+		db = db.Where("redeemed_user_id = ?", *query.RedeemedUserId)
+	}
+	if query.CreatedTimeFrom > 0 {
+		db = db.Where("created_time >= ?", query.CreatedTimeFrom)
+	}
+	if query.CreatedTimeTo > 0 {
+		db = db.Where("created_time <= ?", query.CreatedTimeTo)
+	}
+	if query.RedeemedTimeFrom > 0 {
+		db = db.Where("redeemed_time >= ?", query.RedeemedTimeFrom)
+	}
+	if query.RedeemedTimeTo > 0 {
+		db = db.Where("redeemed_time <= ?", query.RedeemedTimeTo)
+	}
+	return db
+}
+
+func GetSupplierCardStats(query SupplierCardAdminListQuery) (*SupplierCardStats, error) {
+	stats := &SupplierCardStats{}
+	cardDB := applySupplierCardAdminFilters(DB.Model(&SupplierCard{}), query)
+	if err := cardDB.Count(&stats.SoldCount).Error; err != nil {
+		return nil, err
+	}
+	if err := cardDB.Where("status = ?", SupplierCardStatusRedeemed).Count(&stats.RedeemedCount).Error; err != nil {
+		return nil, err
+	}
+	if err := cardDB.Where("status = ?", SupplierCardStatusUnused).Count(&stats.UnusedCount).Error; err != nil {
+		return nil, err
+	}
+	if err := cardDB.Where("status = ?", SupplierCardStatusDisabled).Count(&stats.DisabledCount).Error; err != nil {
+		return nil, err
+	}
+
+	orderDB := DB.Model(&SupplierCardOrder{})
+	if query.Amount != nil {
+		orderDB = orderDB.Where("amount = ?", *query.Amount)
+	}
+	if query.SupplierLevel != nil {
+		orderDB = orderDB.Where("supplier_level = ?", *query.SupplierLevel)
+	}
+	if query.SupplierUserId != nil {
+		orderDB = orderDB.Where("supplier_user_id = ?", *query.SupplierUserId)
+	}
+	if query.CreatedTimeFrom > 0 {
+		orderDB = orderDB.Where("created_time >= ?", query.CreatedTimeFrom)
+	}
+	if query.CreatedTimeTo > 0 {
+		orderDB = orderDB.Where("created_time <= ?", query.CreatedTimeTo)
+	}
+	if err := orderDB.Select("COALESCE(SUM(total_price), 0)").Scan(&stats.TotalSales).Error; err != nil {
+		return nil, err
+	}
+	if err := orderDB.Select("amount, SUM(count) as count, COALESCE(SUM(total_price), 0) as sales").Group("amount").Order("amount asc").Scan(&stats.ByAmount).Error; err != nil {
+		return nil, err
+	}
+	if err := orderDB.Select("supplier_level, SUM(count) as count, COALESCE(SUM(total_price), 0) as sales").Group("supplier_level").Order("supplier_level asc").Scan(&stats.ByLevel).Error; err != nil {
+		return nil, err
+	}
+	return stats, nil
+}
