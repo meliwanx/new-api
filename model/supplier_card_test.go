@@ -123,7 +123,25 @@ func TestPurchaseSupplierCardsRejectsInsufficientBalance(t *testing.T) {
 	_, _, err := PurchaseSupplierCards(user.Id, 1, 1, 100)
 
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "insufficient balance")
+	require.Contains(t, err.Error(), "insufficient purchasing balance")
+
+	var count int64
+	require.NoError(t, DB.Model(&SupplierCard{}).Count(&count).Error)
+	require.Equal(t, int64(0), count)
+}
+
+func TestPurchaseSupplierCardsRejectsRestrictedQuota(t *testing.T) {
+	truncateTables(t)
+	cleanupSupplierCardTables(t)
+	withSupplierCardQuotaPerUnit(t, 100)
+	seedSupplierCardPlan(t, DB, 1, 10, supplierCardTestPrices)
+	user := seedSupplierUser(t, DB, 1, 1, 1000)
+	require.NoError(t, DB.Model(&User{}).Where("id = ?", user.Id).Update("restricted_quota", 1000).Error)
+
+	_, _, err := PurchaseSupplierCards(user.Id, 1, 1, 100)
+
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "insufficient purchasing balance")
 
 	var count int64
 	require.NoError(t, DB.Model(&SupplierCard{}).Count(&count).Error)
@@ -149,10 +167,75 @@ func TestRedeemSupplierCardAddsQuotaAndRejectsRepeat(t *testing.T) {
 	var refreshed User
 	require.NoError(t, DB.First(&refreshed, redeemer.Id).Error)
 	require.Equal(t, 1025, refreshed.Quota)
+	require.Equal(t, 1000, refreshed.RestrictedQuota)
 
 	_, err = RedeemSupplierCardByShareToken(cards[0].ShareToken, redeemer.Id)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "already redeemed")
+}
+
+func TestRestrictedQuotaConsumptionAndRefundKeepsPurchaseBalanceZero(t *testing.T) {
+	truncateTables(t)
+	cleanupSupplierCardTables(t)
+	user := seedSupplierUser(t, DB, 1, 1, 1000)
+	require.NoError(t, DB.Model(&User{}).Where("id = ?", user.Id).Update("restricted_quota", 1000).Error)
+
+	restrictedUsed, err := DecreaseUserQuotaForConsumption(user.Id, 700, true)
+	require.NoError(t, err)
+	require.Equal(t, 700, restrictedUsed)
+
+	var consumed User
+	require.NoError(t, DB.First(&consumed, user.Id).Error)
+	require.Equal(t, 300, consumed.Quota)
+	require.Equal(t, 300, consumed.RestrictedQuota)
+	require.Equal(t, 0, GetUserPurchasableQuota(&consumed))
+
+	require.NoError(t, IncreaseUserQuotaForConsumptionRefund(user.Id, 700, restrictedUsed, true))
+
+	var refunded User
+	require.NoError(t, DB.First(&refunded, user.Id).Error)
+	require.Equal(t, 1000, refunded.Quota)
+	require.Equal(t, 1000, refunded.RestrictedQuota)
+	require.Equal(t, 0, GetUserPurchasableQuota(&refunded))
+}
+
+func TestBackfillSupplierCardRestrictedQuotaRunsOnce(t *testing.T) {
+	truncateTables(t)
+	cleanupSupplierCardTables(t)
+	require.NoError(t, DB.Exec("DELETE FROM options").Error)
+	user := seedSupplierUser(t, DB, 1, 1, 600)
+	require.NoError(t, DB.Create(&SupplierCard{
+		SupplierUserId: 2,
+		SupplierLevel:  1,
+		OrderId:        1,
+		OrderNo:        "order_1",
+		PlanId:         1,
+		Amount:         10,
+		Quota:          1000,
+		Code:           "code_1",
+		ShareToken:     "share_1",
+		Status:         SupplierCardStatusRedeemed,
+		RedeemedUserId: user.Id,
+	}).Error)
+
+	require.NoError(t, backfillSupplierCardRestrictedQuota())
+
+	var backfilled User
+	require.NoError(t, DB.First(&backfilled, user.Id).Error)
+	require.Equal(t, 600, backfilled.Quota)
+	require.Equal(t, 600, backfilled.RestrictedQuota)
+	require.Equal(t, 0, GetUserPurchasableQuota(&backfilled))
+
+	restrictedUsed, err := DecreaseUserQuotaForConsumption(user.Id, 500, true)
+	require.NoError(t, err)
+	require.Equal(t, 500, restrictedUsed)
+	require.NoError(t, backfillSupplierCardRestrictedQuota())
+
+	var afterSecondRun User
+	require.NoError(t, DB.First(&afterSecondRun, user.Id).Error)
+	require.Equal(t, 100, afterSecondRun.Quota)
+	require.Equal(t, 100, afterSecondRun.RestrictedQuota)
+	require.Equal(t, 0, GetUserPurchasableQuota(&afterSecondRun))
 }
 
 func TestListSupplierCardsFiltersUnusedAndKeyword(t *testing.T) {

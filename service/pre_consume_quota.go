@@ -68,10 +68,11 @@ func PreConsumeQuota(c *gin.Context, preConsumedQuota int, relayInfo *relaycommo
 		if err != nil {
 			return types.NewErrorWithStatusCode(err, types.ErrorCodePreConsumeTokenQuotaFailed, http.StatusForbidden, types.ErrOptionWithSkipRetry(), types.ErrOptionWithNoRecordErrorLog())
 		}
-		err = model.DecreaseUserQuota(relayInfo.UserId, preConsumedQuota, false)
+		restrictedQuotaUsed, err := model.DecreaseUserQuotaForConsumption(relayInfo.UserId, preConsumedQuota, false)
 		if err != nil {
 			return types.NewError(err, types.ErrorCodeUpdateDataError, types.ErrOptionWithSkipRetry())
 		}
+		relayInfo.WalletRestrictedQuotaConsumed = restrictedQuotaUsed
 		logger.LogInfo(c, fmt.Sprintf("用户 %d 预扣费 %s, 预扣费后剩余额度: %s", relayInfo.UserId, logger.FormatQuota(preConsumedQuota), logger.FormatQuota(userQuota-preConsumedQuota)))
 	}
 	relayInfo.FinalPreConsumedQuota = preConsumedQuota

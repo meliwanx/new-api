@@ -84,15 +84,44 @@ func taskIsSubscription(task *model.Task) bool {
 	return task.PrivateData.BillingSource == BillingSourceSubscription && task.PrivateData.SubscriptionId > 0
 }
 
+func taskRestrictedRefund(task *model.Task, refundQuota int) int {
+	if task == nil || refundQuota <= 0 {
+		return 0
+	}
+	remainingConsumed := task.Quota - refundQuota
+	if remainingConsumed < 0 {
+		remainingConsumed = 0
+	}
+	restrictedRefund := task.PrivateData.WalletRestrictedQuotaConsumed - remainingConsumed
+	if restrictedRefund < 0 {
+		return 0
+	}
+	if restrictedRefund > refundQuota {
+		return refundQuota
+	}
+	return restrictedRefund
+}
+
 // taskAdjustFunding 调整任务的资金来源（钱包或订阅），delta > 0 表示扣费，delta < 0 表示退还。
 func taskAdjustFunding(task *model.Task, delta int) error {
 	if taskIsSubscription(task) {
 		return model.PostConsumeUserSubscriptionDelta(task.PrivateData.SubscriptionId, int64(delta))
 	}
 	if delta > 0 {
-		return model.DecreaseUserQuota(task.UserId, delta, false)
+		restrictedQuotaUsed, err := model.DecreaseUserQuotaForConsumption(task.UserId, delta, false)
+		if err != nil {
+			return err
+		}
+		task.PrivateData.WalletRestrictedQuotaConsumed += restrictedQuotaUsed
+		return nil
 	}
-	return model.IncreaseUserQuota(task.UserId, -delta, false)
+	refundQuota := -delta
+	restrictedRefund := taskRestrictedRefund(task, refundQuota)
+	if err := model.IncreaseUserQuotaForConsumptionRefund(task.UserId, refundQuota, restrictedRefund, false); err != nil {
+		return err
+	}
+	task.PrivateData.WalletRestrictedQuotaConsumed -= restrictedRefund
+	return nil
 }
 
 // taskAdjustTokenQuota 调整任务的令牌额度，delta > 0 表示扣费，delta < 0 表示退还。

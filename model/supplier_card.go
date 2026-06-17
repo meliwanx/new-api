@@ -21,6 +21,7 @@ const (
 
 const DefaultSupplierCardMaxPurchaseCount = 100
 const SupplierCardShareTokenLength = 16
+const supplierCardRestrictedQuotaBackfillOptionKey = "SupplierCardRestrictedQuotaBackfilled"
 
 type SupplierCardPlan struct {
 	Id          int            `json:"id"`
@@ -125,6 +126,58 @@ type SupplierCardStatsByLevel struct {
 	SupplierLevel int     `json:"supplier_level"`
 	Count         int64   `json:"count"`
 	Sales         float64 `json:"sales"`
+}
+
+type supplierCardRestrictedQuotaBackfillRow struct {
+	RedeemedUserId int   `gorm:"column:redeemed_user_id"`
+	Quota          int64 `gorm:"column:quota"`
+}
+
+func backfillSupplierCardRestrictedQuota() error {
+	return DB.Transaction(func(tx *gorm.DB) error {
+		option := &Option{}
+		err := tx.Where(commonKeyCol+" = ?", supplierCardRestrictedQuotaBackfillOptionKey).First(option).Error
+		if err == nil && strings.EqualFold(option.Value, "true") {
+			return nil
+		}
+		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+			return err
+		}
+
+		var rows []supplierCardRestrictedQuotaBackfillRow
+		if err := tx.Model(&SupplierCard{}).
+			Select("redeemed_user_id, SUM(quota) AS quota").
+			Where("status = ? AND redeemed_user_id > 0", SupplierCardStatusRedeemed).
+			Group("redeemed_user_id").
+			Scan(&rows).Error; err != nil {
+			return err
+		}
+		for _, row := range rows {
+			user := &User{}
+			if err := tx.Select("id", "quota", "restricted_quota").First(user, "id = ?", row.RedeemedUserId).Error; err != nil {
+				if errors.Is(err, gorm.ErrRecordNotFound) {
+					continue
+				}
+				return err
+			}
+			targetRestrictedQuota := int(row.Quota)
+			if targetRestrictedQuota > user.Quota {
+				targetRestrictedQuota = user.Quota
+			}
+			if targetRestrictedQuota < 0 {
+				targetRestrictedQuota = 0
+			}
+			if targetRestrictedQuota <= user.RestrictedQuota {
+				continue
+			}
+			if err := tx.Model(&User{}).Where("id = ?", user.Id).Update("restricted_quota", targetRestrictedQuota).Error; err != nil {
+				return err
+			}
+		}
+
+		option = &Option{Key: supplierCardRestrictedQuotaBackfillOptionKey, Value: "true"}
+		return tx.Save(option).Error
+	})
 }
 
 func ValidateSupplierLevel(level int) error {
@@ -298,8 +351,8 @@ func PurchaseSupplierCards(userID int, planID int, count int, maxCount int) (*Su
 		if totalDebitQuota <= 0 {
 			return errors.New("supplier card price is too low")
 		}
-		if user.Quota < totalDebitQuota {
-			return errors.New("insufficient balance")
+		if GetUserPurchasableQuota(user) < totalDebitQuota {
+			return errors.New("insufficient purchasing balance")
 		}
 
 		now := common.GetTimestamp()
@@ -320,8 +373,14 @@ func PurchaseSupplierCards(userID int, planID int, count int, maxCount int) (*Su
 			return err
 		}
 
-		if err := tx.Model(&User{}).Where("id = ?", userID).Update("quota", gorm.Expr("quota - ?", totalDebitQuota)).Error; err != nil {
-			return err
+		result := tx.Model(&User{}).
+			Where("id = ? AND quota - restricted_quota >= ?", userID, totalDebitQuota).
+			Update("quota", gorm.Expr("quota - ?", totalDebitQuota))
+		if result.Error != nil {
+			return result.Error
+		}
+		if result.RowsAffected == 0 {
+			return errors.New("insufficient purchasing balance")
 		}
 
 		perCardDebitQuota := debitQuotaForPrice(unitPrice)
@@ -384,7 +443,10 @@ func RedeemSupplierCardByShareToken(shareToken string, userID int) (*SupplierCar
 		default:
 			return errors.New("supplier card status invalid")
 		}
-		if err := tx.Model(&User{}).Where("id = ?", userID).Update("quota", gorm.Expr("quota + ?", card.Quota)).Error; err != nil {
+		if err := tx.Model(&User{}).Where("id = ?", userID).Updates(map[string]interface{}{
+			"quota":            gorm.Expr("quota + ?", card.Quota),
+			"restricted_quota": gorm.Expr("restricted_quota + ?", card.Quota),
+		}).Error; err != nil {
 			return err
 		}
 		now := common.GetTimestamp()

@@ -194,9 +194,11 @@ func updateVideoSingleTask(ctx context.Context, adaptor channel.TaskAdaptor, cha
 									logger.LogQuota(preConsumedQuota),
 									taskResult.TotalTokens,
 								))
-								if err := model.DecreaseUserQuota(task.UserId, quotaDelta, false); err != nil {
+								restrictedQuotaUsed, err := model.DecreaseUserQuotaForConsumption(task.UserId, quotaDelta, false)
+								if err != nil {
 									logger.LogError(ctx, fmt.Sprintf("补扣费失败: %s", err.Error()))
 								} else {
+									task.PrivateData.WalletRestrictedQuotaConsumed += restrictedQuotaUsed
 									model.UpdateUserUsedQuotaAndRequestCount(task.UserId, quotaDelta)
 									model.UpdateChannelUsedQuota(task.ChannelId, quotaDelta)
 									task.Quota = actualQuota // 更新任务记录的实际扣费额度
@@ -217,9 +219,17 @@ func updateVideoSingleTask(ctx context.Context, adaptor channel.TaskAdaptor, cha
 									logger.LogQuota(preConsumedQuota),
 									taskResult.TotalTokens,
 								))
-								if err := model.IncreaseUserQuota(task.UserId, refundQuota, false); err != nil {
+								restrictedRefund := task.PrivateData.WalletRestrictedQuotaConsumed - actualQuota
+								if restrictedRefund < 0 {
+									restrictedRefund = 0
+								}
+								if restrictedRefund > refundQuota {
+									restrictedRefund = refundQuota
+								}
+								if err := model.IncreaseUserQuotaForConsumptionRefund(task.UserId, refundQuota, restrictedRefund, false); err != nil {
 									logger.LogError(ctx, fmt.Sprintf("退还预扣费失败: %s", err.Error()))
 								} else {
+									task.PrivateData.WalletRestrictedQuotaConsumed -= restrictedRefund
 									task.Quota = actualQuota // 更新任务记录的实际扣费额度
 
 									// 记录退款日志
@@ -268,8 +278,14 @@ func updateVideoSingleTask(ctx context.Context, adaptor channel.TaskAdaptor, cha
 
 	if shouldRefund {
 		// 任务失败且之前状态不是失败才退还额度，防止重复退还
-		if err := model.IncreaseUserQuota(task.UserId, quota, false); err != nil {
+		restrictedRefund := task.PrivateData.WalletRestrictedQuotaConsumed
+		if restrictedRefund > quota {
+			restrictedRefund = quota
+		}
+		if err := model.IncreaseUserQuotaForConsumptionRefund(task.UserId, quota, restrictedRefund, false); err != nil {
 			logger.LogWarn(ctx, "Failed to increase user quota: "+err.Error())
+		} else {
+			task.PrivateData.WalletRestrictedQuotaConsumed -= restrictedRefund
 		}
 		logContent := fmt.Sprintf("Video async task failed %s, refund %s", task.TaskID, logger.LogQuota(quota))
 		model.RecordLog(task.UserId, model.LogTypeSystem, logContent)

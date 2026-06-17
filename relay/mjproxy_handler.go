@@ -223,11 +223,17 @@ func RelaySwapFace(c *gin.Context, info *relaycommon.RelayInfo) *dto.MidjourneyR
 	if err != nil {
 		return &mjResp.Response
 	}
+	var midjourneyTask *model.Midjourney
 	defer func() {
 		if mjResp.StatusCode == 200 && mjResp.Response.Code == 1 {
 			err := service.PostConsumeQuota(info, priceData.Quota, 0, true)
 			if err != nil {
 				common.SysLog("error consuming token remain quota: " + err.Error())
+			} else if midjourneyTask != nil && info.WalletRestrictedQuotaConsumed > 0 {
+				midjourneyTask.WalletRestrictedQuotaConsumed = info.WalletRestrictedQuotaConsumed
+				if err := model.DB.Model(midjourneyTask).Update("wallet_restricted_quota_consumed", info.WalletRestrictedQuotaConsumed).Error; err != nil {
+					common.SysLog("error updating midjourney restricted quota: " + err.Error())
+				}
 			}
 
 			tokenName := c.GetString("token_name")
@@ -248,7 +254,7 @@ func RelaySwapFace(c *gin.Context, info *relaycommon.RelayInfo) *dto.MidjourneyR
 		}
 	}()
 	midjResponse := &mjResp.Response
-	midjourneyTask := &model.Midjourney{
+	midjourneyTask = &model.Midjourney{
 		UserId:      info.UserId,
 		Code:        midjResponse.Code,
 		Action:      constant.MjActionSwapFace,
@@ -530,11 +536,17 @@ func RelayMidjourneySubmit(c *gin.Context, relayInfo *relaycommon.RelayInfo) *dt
 	}
 	midjResponse := &midjResponseWithStatus.Response
 
+	var midjourneyTask *model.Midjourney
 	defer func() {
 		if consumeQuota && midjResponseWithStatus.StatusCode == 200 {
 			err := service.PostConsumeQuota(relayInfo, priceData.Quota, 0, true)
 			if err != nil {
 				common.SysLog("error consuming token remain quota: " + err.Error())
+			} else if midjourneyTask != nil && relayInfo.WalletRestrictedQuotaConsumed > 0 {
+				midjourneyTask.WalletRestrictedQuotaConsumed = relayInfo.WalletRestrictedQuotaConsumed
+				if err := model.DB.Model(midjourneyTask).Update("wallet_restricted_quota_consumed", relayInfo.WalletRestrictedQuotaConsumed).Error; err != nil {
+					common.SysLog("error updating midjourney restricted quota: " + err.Error())
+				}
 			}
 			tokenName := c.GetString("token_name")
 			logContent := fmt.Sprintf("模型固定价格 %.2f，分组倍率 %.2f，操作 %s，ID %s", priceData.ModelPrice, priceData.GroupRatioInfo.GroupRatio, midjRequest.Action, midjResponse.Result)
@@ -561,7 +573,7 @@ func RelayMidjourneySubmit(c *gin.Context, relayInfo *relaycommon.RelayInfo) *dt
 	// 23-队列已满，请稍后再试 {"code":23,"description":"队列已满，请稍后尝试","result":"14001929738841620","properties":{"discordInstanceId":"1118138338562560102"}}
 	// 24-prompt包含敏感词 {"code":24,"description":"可能包含敏感词","properties":{"promptEn":"nude body","bannedWord":"nude"}}
 	// other: 提交错误，description为错误描述
-	midjourneyTask := &model.Midjourney{
+	midjourneyTask = &model.Midjourney{
 		UserId:      relayInfo.UserId,
 		Code:        midjResponse.Code,
 		Action:      midjRequest.Action,
