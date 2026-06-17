@@ -126,6 +126,10 @@ export function UsersMutateDrawer({
   const tokensOnly = currencyMeta.kind === 'tokens'
 
   const currentQuotaRaw = form.watch('quota_dollars') || 0
+  const supplierLevelOptions = Array.from({ length: 11 }, (_, level) => ({
+    value: String(level),
+    label: level === 0 ? t('Not a supplier') : t('Supplier level {{level}}', { level }),
+  }))
 
   const onSubmit = async (data: UserFormValues) => {
     if (!isUpdate) {
@@ -309,6 +313,46 @@ export function UsersMutateDrawer({
                           }
                         />
                       </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name='supplier_level'
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t('Supplier Level')}</FormLabel>
+                      <Select
+                        items={supplierLevelOptions}
+                        onValueChange={(value) =>
+                          value !== null && field.onChange(parseInt(value))
+                        }
+                        value={String(field.value ?? 0)}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue
+                              placeholder={t('Select supplier level')}
+                            />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent alignItemWithTrigger={false}>
+                          <SelectGroup>
+                            {supplierLevelOptions.map((item) => (
+                              <SelectItem key={item.value} value={item.value}>
+                                {item.label}
+                              </SelectItem>
+                            ))}
+                          </SelectGroup>
+                        </SelectContent>
+                      </Select>
+                      <FormDescription>
+                        {t(
+                          'Level 0 is a normal user. Levels 1-10 can purchase supplier cards.'
+                        )}
+                      </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}

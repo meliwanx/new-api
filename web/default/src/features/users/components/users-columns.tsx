@@ -237,6 +237,23 @@ export function useUsersColumns(): ColumnDef<User>[] {
       size: 140,
     },
     {
+      accessorKey: 'supplier_level',
+      header: t('Supplier'),
+      cell: ({ row }) => {
+        const level = row.original.supplier_level ?? 0
+        return (
+          <StatusBadge
+            label={level > 0 ? t('Level {{level}}', { level }) : t('None')}
+            variant={level > 0 ? 'success' : 'neutral'}
+            copyable={false}
+            className='-ml-1.5'
+          />
+        )
+      },
+      enableSorting: false,
+      size: 130,
+    },
+    {
       accessorKey: 'role',
       header: t('Role'),
       cell: ({ row }) => {
