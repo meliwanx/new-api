@@ -438,6 +438,32 @@ func RequestAmount(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "success", "data": strconv.FormatFloat(payMoney, 'f', 2, 64)})
 }
 
+type topUpWithInvoice struct {
+	*model.TopUp
+	InvoiceRequest *model.InvoiceRequest `json:"invoice_request,omitempty"`
+}
+
+func attachInvoiceRequests(topups []*model.TopUp) ([]topUpWithInvoice, error) {
+	tradeNos := make([]string, 0, len(topups))
+	for _, topup := range topups {
+		if topup != nil && topup.TradeNo != "" {
+			tradeNos = append(tradeNos, topup.TradeNo)
+		}
+	}
+	invoiceByTradeNo, err := model.GetInvoiceRequestsByTradeNos(tradeNos)
+	if err != nil {
+		return nil, err
+	}
+	items := make([]topUpWithInvoice, 0, len(topups))
+	for _, topup := range topups {
+		items = append(items, topUpWithInvoice{
+			TopUp:          topup,
+			InvoiceRequest: invoiceByTradeNo[topup.TradeNo],
+		})
+	}
+	return items, nil
+}
+
 func GetUserTopUps(c *gin.Context) {
 	userId := c.GetInt("id")
 	pageInfo := common.GetPageQuery(c)
@@ -457,9 +483,14 @@ func GetUserTopUps(c *gin.Context) {
 		common.ApiError(c, err)
 		return
 	}
+	items, err := attachInvoiceRequests(topups)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
 
 	pageInfo.SetTotal(int(total))
-	pageInfo.SetItems(topups)
+	pageInfo.SetItems(items)
 	common.ApiSuccess(c, pageInfo)
 }
 
@@ -482,9 +513,14 @@ func GetAllTopUps(c *gin.Context) {
 		common.ApiError(c, err)
 		return
 	}
+	items, err := attachInvoiceRequests(topups)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
 
 	pageInfo.SetTotal(int(total))
-	pageInfo.SetItems(topups)
+	pageInfo.SetItems(items)
 	common.ApiSuccess(c, pageInfo)
 }
 

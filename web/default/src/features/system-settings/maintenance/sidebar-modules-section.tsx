@@ -120,6 +120,10 @@ export function SidebarModulesSection({
         title: t('Wallet'),
         description: t('Top up balance and view billing history.'),
       },
+      orders: {
+        title: t('Orders'),
+        description: t('View wallet order history and invoice requests.'),
+      },
       personal: {
         title: t('Profile'),
         description: t('Personal settings and profile management.'),
@@ -149,6 +153,10 @@ export function SidebarModulesSection({
       subscription: {
         title: t('Subscription Management'),
         description: t('Manage subscription plans and pricing.'),
+      },
+      invoice: {
+        title: t('Invoices'),
+        description: t('Process customer invoice requests.'),
       },
     },
   }

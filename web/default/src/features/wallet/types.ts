@@ -16,6 +16,8 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
+import type { InvoiceRequest } from '@/features/invoices/types'
+
 // ============================================================================
 // Wallet Type Definitions
 // ============================================================================
@@ -302,7 +304,12 @@ export type AffiliateInviteesResponse = ApiResponse<AffiliateInviteesData>
 /**
  * Topup record status
  */
-export type TopupStatus = 'success' | 'pending' | 'expired' | 'refunded'
+export type TopupStatus =
+  | 'success'
+  | 'pending'
+  | 'failed'
+  | 'expired'
+  | 'refunded'
 
 /**
  * Topup billing record
@@ -326,6 +333,8 @@ export interface TopupRecord {
   complete_time?: number
   /** Payment status */
   status: TopupStatus
+  /** Optional invoice request attached by backend */
+  invoice_request?: InvoiceRequest
 }
 
 /**

@@ -16,24 +16,10 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { z } from 'zod'
-import { createFileRoute, redirect } from '@tanstack/react-router'
-import { Wallet } from '@/features/wallet'
+import { createFileRoute } from '@tanstack/react-router'
+import { WalletOrdersPage } from '@/features/wallet/components/wallet-orders-page'
 
-const walletSearchSchema = z.object({
-  show_history: z.boolean().optional(),
+export const Route = createFileRoute('/_authenticated/wallet/orders')({
+  component: WalletOrdersPage,
 })
 
-export const Route = createFileRoute('/_authenticated/wallet/')({
-  component: RouteComponent,
-  validateSearch: walletSearchSchema,
-  beforeLoad: ({ search }) => {
-    if (search.show_history) {
-      throw redirect({ to: '/wallet/orders' })
-    }
-  },
-})
-
-function RouteComponent() {
-  return <Wallet />
-}

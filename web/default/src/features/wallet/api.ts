@@ -18,6 +18,10 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import { api } from '@/lib/api'
 import type {
+  InvoiceCreateRequest,
+  InvoiceRequest,
+} from '@/features/invoices/types'
+import type {
   RedemptionRequest,
   PaymentRequest,
   AmountRequest,
@@ -229,6 +233,23 @@ export async function getUserBillingHistory(
   }
   const res = await api.get(`/api/user/topup/self?${params.toString()}`)
   return res.data
+}
+
+/**
+ * Create invoice request for a successful topup order
+ */
+export async function createInvoiceRequest(
+  request: InvoiceCreateRequest
+): Promise<ApiResponse<InvoiceRequest>> {
+  const res = await api.post('/api/user/invoice/request', request)
+  return res.data
+}
+
+/**
+ * Get current user's invoice download URL
+ */
+export function getUserInvoiceDownloadUrl(id: number): string {
+  return `/api/user/invoice/${id}/download`
 }
 
 /**

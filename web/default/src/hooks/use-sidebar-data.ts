@@ -20,6 +20,7 @@ import {
   Activity,
   Box,
   CreditCard,
+  FileCheck2,
   FileText,
   FlaskConical,
   Key,
@@ -28,6 +29,7 @@ import {
   MessageSquare,
   Network,
   Radio,
+  ReceiptText,
   Settings,
   Ticket,
   User,
@@ -107,6 +109,11 @@ export function useSidebarData(): SidebarData {
             icon: Wallet,
           },
           {
+            title: t('Orders'),
+            url: '/wallet/orders',
+            icon: ReceiptText,
+          },
+          {
             title: t('Affiliate'),
             url: '/affiliate',
             icon: Network,
@@ -146,6 +153,11 @@ export function useSidebarData(): SidebarData {
             title: t('Subscription Management'),
             url: '/subscriptions',
             icon: CreditCard,
+          },
+          {
+            title: t('Invoices'),
+            url: '/invoices',
+            icon: FileCheck2,
           },
           {
             title: t('System Settings'),
