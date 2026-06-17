@@ -1,6 +1,7 @@
 package model
 
 import (
+	"context"
 	"strconv"
 	"strings"
 	"time"
@@ -13,10 +14,18 @@ import (
 	"github.com/QuantumNous/new-api/setting/ratio_setting"
 	"github.com/QuantumNous/new-api/setting/system_setting"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type Option struct {
 	Key   string `json:"key" gorm:"primaryKey"`
+	Value string `json:"value"`
+}
+
+const optionUpdateChannel = "new-api:option-updates:v1"
+
+type optionUpdateEvent struct {
+	Key   string `json:"key"`
 	Value string `json:"value"`
 }
 
@@ -193,13 +202,22 @@ func InitOptionMap() {
 }
 
 func loadOptionsFromDatabase() {
-	options, _ := AllOption()
+	if err := SyncOptionMapFromDatabase(); err != nil {
+		common.SysLog("failed to load options from database: " + err.Error())
+	}
+}
+
+func SyncOptionMapFromDatabase() error {
+	options, err := AllOption()
+	if err != nil {
+		return err
+	}
 	for _, option := range options {
-		err := updateOptionMap(option.Key, option.Value)
-		if err != nil {
+		if err := updateOptionMap(option.Key, option.Value); err != nil {
 			common.SysLog("failed to update option map: " + err.Error())
 		}
 	}
+	return nil
 }
 
 func SyncOptions(frequency int) {
@@ -210,20 +228,60 @@ func SyncOptions(frequency int) {
 	}
 }
 
-func UpdateOption(key string, value string) error {
-	// Save to database first
-	option := Option{
-		Key: key,
+func SubscribeOptionUpdates() {
+	if !common.RedisEnabled || common.RDB == nil {
+		return
 	}
-	// https://gorm.io/docs/update.html#Save-All-Fields
-	DB.FirstOrCreate(&option, Option{Key: key})
-	option.Value = value
-	// Save is a combination function.
-	// If save value does not contain primary key, it will execute Create,
-	// otherwise it will execute Update (with all fields).
-	DB.Save(&option)
-	// Update OptionMap
-	return updateOptionMap(key, value)
+
+	ctx := context.Background()
+	pubSub := common.RDB.Subscribe(ctx, optionUpdateChannel)
+	defer pubSub.Close()
+
+	for message := range pubSub.Channel() {
+		var event optionUpdateEvent
+		if err := common.Unmarshal([]byte(message.Payload), &event); err != nil {
+			common.SysLog("failed to unmarshal option update event: " + err.Error())
+			continue
+		}
+		if strings.TrimSpace(event.Key) == "" {
+			continue
+		}
+		if err := updateOptionMap(event.Key, event.Value); err != nil {
+			common.SysLog("failed to apply option update event: " + err.Error())
+		}
+	}
+}
+
+func publishOptionUpdate(key string, value string) {
+	if !common.RedisEnabled || common.RDB == nil {
+		return
+	}
+	payload, err := common.Marshal(optionUpdateEvent{Key: key, Value: value})
+	if err != nil {
+		common.SysLog("failed to marshal option update event: " + err.Error())
+		return
+	}
+	if err := common.RDB.Publish(context.Background(), optionUpdateChannel, string(payload)).Err(); err != nil {
+		common.SysLog("failed to publish option update event: " + err.Error())
+	}
+}
+
+func upsertOption(tx *gorm.DB, key string, value string) error {
+	return tx.Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "key"}},
+		DoUpdates: clause.AssignmentColumns([]string{"value"}),
+	}).Create(&Option{Key: key, Value: value}).Error
+}
+
+func UpdateOption(key string, value string) error {
+	if err := upsertOption(DB, key, value); err != nil {
+		return err
+	}
+	if err := updateOptionMap(key, value); err != nil {
+		return err
+	}
+	publishOptionUpdate(key, value)
+	return nil
 }
 
 // UpdateOptionsBulk persists multiple key/value pairs in a single database
@@ -237,12 +295,7 @@ func UpdateOptionsBulk(values map[string]string) error {
 	}
 	err := DB.Transaction(func(tx *gorm.DB) error {
 		for k, v := range values {
-			option := Option{Key: k}
-			if err := tx.FirstOrCreate(&option, Option{Key: k}).Error; err != nil {
-				return err
-			}
-			option.Value = v
-			if err := tx.Save(&option).Error; err != nil {
+			if err := upsertOption(tx, k, v); err != nil {
 				return err
 			}
 		}
@@ -255,6 +308,7 @@ func UpdateOptionsBulk(values map[string]string) error {
 		if err := updateOptionMap(k, v); err != nil {
 			return err
 		}
+		publishOptionUpdate(k, v)
 	}
 	return nil
 }
