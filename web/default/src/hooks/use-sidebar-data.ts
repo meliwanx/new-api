@@ -32,6 +32,7 @@ import {
   ReceiptText,
   Settings,
   Ticket,
+  TicketPercent,
   User,
   Users,
   Wallet,
@@ -119,6 +120,11 @@ export function useSidebarData(): SidebarData {
             icon: Network,
           },
           {
+            title: t('Supplier Cards'),
+            url: '/supplier-cards',
+            icon: TicketPercent,
+          },
+          {
             title: t('Profile'),
             url: '/profile',
             icon: User,
@@ -148,6 +154,11 @@ export function useSidebarData(): SidebarData {
             title: t('Redemption Codes'),
             url: '/redemption-codes',
             icon: Ticket,
+          },
+          {
+            title: t('Supplier Card Management'),
+            url: '/supplier-card-management',
+            icon: TicketPercent,
           },
           {
             title: t('Subscription Management'),
