@@ -309,6 +309,15 @@ func UpdateOption(c *gin.Context) {
 			})
 			return
 		}
+	case "SupplierCardMaxPurchaseCount":
+		count, err := strconv.Atoi(strings.TrimSpace(option.Value.(string)))
+		if err != nil || count <= 0 || count > 1000 {
+			c.JSON(http.StatusOK, gin.H{
+				"success": false,
+				"message": "供应商充值卡单次购买数量必须在 1 到 1000 之间",
+			})
+			return
+		}
 	case "console_setting.api_info":
 		err = console_setting.ValidateConsoleSettings(option.Value.(string), "ApiInfo")
 		if err != nil {

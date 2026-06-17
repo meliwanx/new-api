@@ -283,6 +283,9 @@ func migrateDB() error {
 		&PerfMetric{},
 		&ReferralCommission{},
 		&InvoiceRequest{},
+		&SupplierCardPlan{},
+		&SupplierCardOrder{},
+		&SupplierCard{},
 	)
 	if err != nil {
 		return err
@@ -334,6 +337,9 @@ func migrateDBFast() error {
 		{&PerfMetric{}, "PerfMetric"},
 		{&ReferralCommission{}, "ReferralCommission"},
 		{&InvoiceRequest{}, "InvoiceRequest"},
+		{&SupplierCardPlan{}, "SupplierCardPlan"},
+		{&SupplierCardOrder{}, "SupplierCardOrder"},
+		{&SupplierCard{}, "SupplierCard"},
 	}
 	// 动态计算migration数量，确保errChan缓冲区足够大
 	errChan := make(chan error, len(migrations))

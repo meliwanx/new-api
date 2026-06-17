@@ -180,3 +180,19 @@ func TestListSupplierCardsFiltersUnusedAndKeyword(t *testing.T) {
 	require.Equal(t, cards[1].Id, items[0].Id)
 	require.Equal(t, SupplierCardStatusUnused, items[0].Status)
 }
+
+func TestGetSupplierCardMaxPurchaseCountDefaultAndOverride(t *testing.T) {
+	previousMap := common.OptionMap
+	common.OptionMap = map[string]string{}
+	t.Cleanup(func() {
+		common.OptionMap = previousMap
+	})
+
+	require.Equal(t, DefaultSupplierCardMaxPurchaseCount, GetSupplierCardMaxPurchaseCount())
+
+	common.OptionMap["SupplierCardMaxPurchaseCount"] = "25"
+	require.Equal(t, 25, GetSupplierCardMaxPurchaseCount())
+
+	common.OptionMap["SupplierCardMaxPurchaseCount"] = "-1"
+	require.Equal(t, DefaultSupplierCardMaxPurchaseCount, GetSupplierCardMaxPurchaseCount())
+}

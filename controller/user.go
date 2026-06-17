@@ -146,12 +146,13 @@ func setupLogin(user *model.User, c *gin.Context) {
 		"message": "",
 		"success": true,
 		"data": map[string]any{
-			"id":           user.Id,
-			"username":     user.Username,
-			"display_name": user.DisplayName,
-			"role":         user.Role,
-			"status":       user.Status,
-			"group":        user.Group,
+			"id":             user.Id,
+			"username":       user.Username,
+			"display_name":   user.DisplayName,
+			"role":           user.Role,
+			"status":         user.Status,
+			"group":          user.Group,
+			"supplier_level": user.SupplierLevel,
 		},
 	})
 }
@@ -541,6 +542,7 @@ func GetSelf(c *gin.Context) {
 		"wechat_id":         user.WeChatId,
 		"telegram_id":       user.TelegramId,
 		"group":             user.Group,
+		"supplier_level":    user.SupplierLevel,
 		"quota":             user.Quota,
 		"used_quota":        user.UsedQuota,
 		"request_count":     user.RequestCount,
@@ -707,6 +709,10 @@ func UpdateUser(c *gin.Context) {
 	}
 	if !canManageTargetRole(myRole, updatedUser.Role) {
 		common.ApiErrorI18n(c, i18n.MsgUserCannotCreateHigherLevel)
+		return
+	}
+	if err := model.ValidateSupplierLevel(updatedUser.SupplierLevel); err != nil {
+		common.ApiError(c, err)
 		return
 	}
 	if updatedUser.Password == "$I_LOVE_U" {
@@ -969,6 +975,10 @@ func CreateUser(c *gin.Context) {
 	if user.DisplayName == "" {
 		user.DisplayName = user.Username
 	}
+	if err := model.ValidateSupplierLevel(user.SupplierLevel); err != nil {
+		common.ApiError(c, err)
+		return
+	}
 	myRole := c.GetInt("role")
 	if user.Role >= myRole {
 		common.ApiErrorI18n(c, i18n.MsgUserCannotCreateHigherLevel)
@@ -976,10 +986,11 @@ func CreateUser(c *gin.Context) {
 	}
 	// Even for admin users, we cannot fully trust them!
 	cleanUser := model.User{
-		Username:    user.Username,
-		Password:    user.Password,
-		DisplayName: user.DisplayName,
-		Role:        user.Role, // 保持管理员设置的角色
+		Username:      user.Username,
+		Password:      user.Password,
+		DisplayName:   user.DisplayName,
+		Role:          user.Role, // 保持管理员设置的角色
+		SupplierLevel: user.SupplierLevel,
 	}
 	if err := cleanUser.Insert(0); err != nil {
 		common.ApiError(c, err)

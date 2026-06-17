@@ -93,6 +93,17 @@ type SupplierCardAdminListQuery struct {
 	RedeemedTimeTo   int64
 }
 
+type SupplierCardOrderListQuery struct {
+	Page            int
+	PageSize        int
+	Amount          *int64
+	SupplierLevel   *int
+	SupplierUserId  *int
+	Keyword         string
+	CreatedTimeFrom int64
+	CreatedTimeTo   int64
+}
+
 type SupplierCardStats struct {
 	TotalSales    float64                     `json:"total_sales"`
 	SoldCount     int64                       `json:"sold_count"`
@@ -120,6 +131,17 @@ func ValidateSupplierLevel(level int) error {
 		return errors.New("supplier level must be between 0 and 10")
 	}
 	return nil
+}
+
+func GetSupplierCardMaxPurchaseCount() int {
+	common.OptionMapRWMutex.RLock()
+	value := common.OptionMap["SupplierCardMaxPurchaseCount"]
+	common.OptionMapRWMutex.RUnlock()
+	count, err := strconv.Atoi(strings.TrimSpace(value))
+	if err != nil || count <= 0 {
+		return DefaultSupplierCardMaxPurchaseCount
+	}
+	return count
 }
 
 func (p *SupplierCardPlan) BeforeCreate(tx *gorm.DB) error {
@@ -433,6 +455,42 @@ func ListAdminSupplierCards(query SupplierCardAdminListQuery) ([]*SupplierCard, 
 		return nil, 0, err
 	}
 	return cards, total, nil
+}
+
+func ListAdminSupplierCardOrders(query SupplierCardOrderListQuery) ([]*SupplierCardOrder, int64, error) {
+	page, pageSize := normalizeSupplierCardPagination(query.Page, query.PageSize)
+	db := DB.Model(&SupplierCardOrder{})
+	if query.Amount != nil {
+		db = db.Where("amount = ?", *query.Amount)
+	}
+	if query.SupplierLevel != nil {
+		db = db.Where("supplier_level = ?", *query.SupplierLevel)
+	}
+	if query.SupplierUserId != nil {
+		db = db.Where("supplier_user_id = ?", *query.SupplierUserId)
+	}
+	if query.CreatedTimeFrom > 0 {
+		db = db.Where("created_time >= ?", query.CreatedTimeFrom)
+	}
+	if query.CreatedTimeTo > 0 {
+		db = db.Where("created_time <= ?", query.CreatedTimeTo)
+	}
+	if strings.TrimSpace(query.Keyword) != "" {
+		pattern, err := sanitizeLikePattern(query.Keyword)
+		if err != nil {
+			return nil, 0, err
+		}
+		db = db.Where("order_no LIKE ? ESCAPE '!'", pattern)
+	}
+	var total int64
+	if err := db.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+	var orders []*SupplierCardOrder
+	if err := db.Order("id desc").Limit(pageSize).Offset((page - 1) * pageSize).Find(&orders).Error; err != nil {
+		return nil, 0, err
+	}
+	return orders, total, nil
 }
 
 func applySupplierCardAdminFilters(db *gorm.DB, query SupplierCardAdminListQuery) *gorm.DB {

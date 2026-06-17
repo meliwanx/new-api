@@ -138,6 +138,7 @@ func InitOptionMap() {
 	common.OptionMap["AffCommissionMinRecharge"] = strconv.FormatFloat(common.AffCommissionMinRecharge, 'f', -1, 64)
 	common.OptionMap["AffCommissionValidityDays"] = strconv.Itoa(common.AffCommissionValidityDays)
 	common.OptionMap["AffCommissionOnlyRealPay"] = strconv.FormatBool(common.AffCommissionOnlyRealPay)
+	common.OptionMap["SupplierCardMaxPurchaseCount"] = strconv.Itoa(DefaultSupplierCardMaxPurchaseCount)
 	common.OptionMap["QuotaRemindThreshold"] = strconv.Itoa(common.QuotaRemindThreshold)
 	common.OptionMap["PreConsumedQuota"] = strconv.Itoa(common.PreConsumedQuota)
 	common.OptionMap["ModelRequestRateLimitCount"] = strconv.Itoa(setting.ModelRequestRateLimitCount)

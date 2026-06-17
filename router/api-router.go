@@ -310,6 +310,32 @@ func SetApiRouter(router *gin.Engine) {
 			redemptionRoute.DELETE("/invalid", controller.DeleteInvalidRedemption)
 			redemptionRoute.DELETE("/:id", controller.DeleteRedemption)
 		}
+		supplierCardRoute := apiRouter.Group("/supplier-cards")
+		{
+			supplierCardRoute.GET("/share/:token", controller.GetSupplierCardShare)
+			supplierCardRoute.POST("/share/:token/redeem", middleware.UserAuth(), middleware.CriticalRateLimit(), controller.RedeemSupplierCardShare)
+
+			supplierCardUserRoute := supplierCardRoute.Group("/")
+			supplierCardUserRoute.Use(middleware.UserAuth())
+			{
+				supplierCardUserRoute.GET("/plans", controller.GetSupplierCardPlans)
+				supplierCardUserRoute.POST("/purchase", middleware.CriticalRateLimit(), controller.PurchaseSupplierCards)
+				supplierCardUserRoute.GET("/self", controller.GetUserSupplierCards)
+			}
+
+			supplierCardAdminRoute := supplierCardRoute.Group("/admin")
+			supplierCardAdminRoute.Use(middleware.AdminAuth())
+			{
+				supplierCardAdminRoute.GET("/plans", controller.AdminListSupplierCardPlans)
+				supplierCardAdminRoute.POST("/plans", controller.AdminCreateSupplierCardPlan)
+				supplierCardAdminRoute.PUT("/plans/:id", controller.AdminUpdateSupplierCardPlan)
+				supplierCardAdminRoute.GET("/orders", controller.AdminListSupplierCardOrders)
+				supplierCardAdminRoute.GET("/cards", controller.AdminListSupplierCards)
+				supplierCardAdminRoute.GET("/stats", controller.AdminGetSupplierCardStats)
+				supplierCardAdminRoute.GET("/settings", controller.AdminGetSupplierCardSettings)
+				supplierCardAdminRoute.PUT("/settings", controller.AdminUpdateSupplierCardSettings)
+			}
+		}
 		logRoute := apiRouter.Group("/log")
 		logRoute.GET("/", middleware.AdminAuth(), controller.GetAllLogs)
 		logRoute.DELETE("/", middleware.AdminAuth(), controller.DeleteHistoryLogs)
