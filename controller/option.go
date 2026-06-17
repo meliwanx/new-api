@@ -9,6 +9,7 @@ import (
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/i18n"
 	"github.com/QuantumNous/new-api/model"
+	"github.com/QuantumNous/new-api/service"
 	"github.com/QuantumNous/new-api/setting"
 	"github.com/QuantumNous/new-api/setting/console_setting"
 	"github.com/QuantumNous/new-api/setting/operation_setting"
@@ -217,6 +218,14 @@ func UpdateOption(c *gin.Context) {
 			c.JSON(http.StatusOK, gin.H{
 				"success": false,
 				"message": "无法启用 Telegram OAuth，请先填入 Telegram Bot Token！",
+			})
+			return
+		}
+	case "CustomCallbackAddress":
+		if strings.TrimSpace(option.Value.(string)) != "" && service.IsPayGatewayCallbackAddress(option.Value.(string), operation_setting.PayAddress) {
+			c.JSON(http.StatusOK, gin.H{
+				"success": false,
+				"message": "自定义回调地址不能填写易支付网关地址，请留空使用系统访问地址，或填写本站回调域名。",
 			})
 			return
 		}
