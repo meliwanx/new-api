@@ -249,7 +249,7 @@ export function CardHistory({
                         tooltip={t('Copy share link')}
                         successTooltip={t('Share link copied')}
                       >
-                        {t('Share')}
+                        {t('Copy Redeem Link')}
                       </CopyButton>
                     )}
                   </div>
