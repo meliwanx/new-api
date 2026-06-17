@@ -174,6 +174,8 @@ const defaultSupplierFilters: SupplierFilterState = {
   supplierLevel: 'all',
 }
 
+type Translate = (key: string, options?: Record<string, unknown>) => string
+
 function numberOrUndefined(value: string) {
   const trimmed = value.trim()
   if (!trimmed) return undefined
@@ -291,6 +293,26 @@ function getSupplierStatusMeta(status: number) {
     default:
       return { label: 'Unknown', variant: 'warning' as const }
   }
+}
+
+function getCardStatusFilterLabel(value: string, t: Translate) {
+  switch (value) {
+    case 'all':
+      return t('All statuses')
+    case String(SUPPLIER_CARD_STATUS.UNUSED):
+      return t('Unused')
+    case String(SUPPLIER_CARD_STATUS.REDEEMED):
+      return t('Redeemed')
+    case String(SUPPLIER_CARD_STATUS.DISABLED):
+      return t('Disabled')
+    default:
+      return value || t('All statuses')
+  }
+}
+
+function getBalanceActionFilterLabel(value: string, t: Translate) {
+  if (value === 'all') return t('All actions')
+  return t(getBalanceActionLabel(value))
 }
 
 function PlanEditor({
@@ -517,7 +539,13 @@ function SupplierBalanceTable({
               }
             >
               <SelectTrigger className='w-full'>
-                <SelectValue />
+                <SelectValue>
+                  {filters.supplierLevel === 'all'
+                    ? t('All levels')
+                    : t('Level {{level}}', {
+                        level: Number(filters.supplierLevel),
+                      })}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectGroup>
@@ -737,7 +765,13 @@ function BalanceAdjustmentPanel({
                 }
               >
                 <SelectTrigger className='w-full'>
-                  <SelectValue />
+                  <SelectValue>
+                    {{
+                      add: t('Add'),
+                      subtract: t('Subtract'),
+                      override: t('Override'),
+                    }[mode] ?? mode}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectGroup>
@@ -1445,7 +1479,9 @@ function FilterPanel({
             onValueChange={(value) => updateFilter('status', value ?? 'all')}
           >
             <SelectTrigger className='w-full'>
-              <SelectValue />
+              <SelectValue>
+                {getCardStatusFilterLabel(filters.status, t)}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectGroup>
@@ -1583,7 +1619,9 @@ function BalanceFilterPanel({
             onValueChange={(value) => updateFilter('action', value ?? 'all')}
           >
             <SelectTrigger className='w-full'>
-              <SelectValue />
+              <SelectValue>
+                {getBalanceActionFilterLabel(filters.action, t)}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectGroup>

@@ -32,7 +32,6 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
-import { Checkbox } from '@/components/ui/checkbox'
 import {
   Empty,
   EmptyDescription,
@@ -41,21 +40,9 @@ import {
   EmptyTitle,
 } from '@/components/ui/empty'
 import { Input } from '@/components/ui/input'
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
 import { CopyButton } from '@/components/copy-button'
-import {
-  SUPPLIER_CARD_STATUS,
-  type SupplierCard,
-  type SupplierCardStatus,
-} from '../types'
+import { type SupplierCard, type SupplierCardStatus } from '../types'
 import { SupplierCardVisual } from './supplier-card-visual'
 
 interface CardHistoryProps {
@@ -63,24 +50,13 @@ interface CardHistoryProps {
   total: number
   page: number
   pageSize: number
-  status?: number
   keyword: string
-  unusedOnly: boolean
   loading?: boolean
   onFilterChange: (filters: {
-    status?: number
     keyword: string
-    unusedOnly: boolean
   }) => void
   onPageChange: (page: number) => void
 }
-
-const statusOptions: { value: string; label: string }[] = [
-  { value: 'all', label: 'All statuses' },
-  { value: String(SUPPLIER_CARD_STATUS.UNUSED), label: 'Unused' },
-  { value: String(SUPPLIER_CARD_STATUS.REDEEMED), label: 'Redeemed' },
-  { value: String(SUPPLIER_CARD_STATUS.DISABLED), label: 'Disabled' },
-]
 
 function getShareUrl(token?: string) {
   if (!token || typeof window === 'undefined') return ''
@@ -110,9 +86,7 @@ export function CardHistory({
   total,
   page,
   pageSize,
-  status,
   keyword,
-  unusedOnly,
   loading,
   onFilterChange,
   onPageChange,
@@ -122,22 +96,20 @@ export function CardHistory({
   const totalPages = Math.max(1, Math.ceil(total / pageSize))
 
   const applyKeyword = () => {
-    onFilterChange({ status, keyword: draftKeyword.trim(), unusedOnly })
+    onFilterChange({ keyword: draftKeyword.trim() })
   }
 
   return (
     <Card className='rounded-lg py-0'>
       <CardHeader className='border-b py-4'>
-        <CardTitle>{t('Purchased Cards')}</CardTitle>
+        <CardTitle>{t('Available Cards')}</CardTitle>
         <CardDescription>
-          {t(
-            'View codes, redemption status, and share links for purchased cards.'
-          )}
+          {t('Only unused purchased recharge cards are shown here.')}
         </CardDescription>
       </CardHeader>
 
       <CardContent className='flex flex-col gap-4 p-4'>
-        <div className='grid gap-2 lg:grid-cols-[minmax(0,1fr)_180px_auto]'>
+        <div className='grid gap-2 lg:grid-cols-[minmax(0,1fr)_auto]'>
           <div className='flex min-w-0 gap-2'>
             <Input
               value={draftKeyword}
@@ -152,44 +124,6 @@ export function CardHistory({
               {t('Search')}
             </Button>
           </div>
-
-          <Select
-            value={status == null ? 'all' : String(status)}
-            onValueChange={(value) =>
-              onFilterChange({
-                keyword,
-                unusedOnly: false,
-                status: value === 'all' ? undefined : Number(value),
-              })
-            }
-          >
-            <SelectTrigger className='w-full'>
-              <SelectValue placeholder={t('All statuses')} />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                {statusOptions.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {t(option.label)}
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-
-          <label className='flex h-8 items-center gap-2 rounded-lg border px-3 text-sm'>
-            <Checkbox
-              checked={unusedOnly}
-              onCheckedChange={(checked) =>
-                onFilterChange({
-                  keyword,
-                  status: undefined,
-                  unusedOnly: checked === true,
-                })
-              }
-            />
-            <span>{t('Only unused')}</span>
-          </label>
         </div>
 
         {loading ? (
@@ -206,7 +140,7 @@ export function CardHistory({
               </EmptyMedia>
               <EmptyTitle>{t('No supplier cards found')}</EmptyTitle>
               <EmptyDescription>
-                {t('Purchased recharge cards will appear here.')}
+                {t('Unused purchased recharge cards will appear here.')}
               </EmptyDescription>
             </EmptyHeader>
           </Empty>

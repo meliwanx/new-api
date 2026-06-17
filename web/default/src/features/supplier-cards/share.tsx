@@ -22,7 +22,7 @@ import { LogIn, TicketCheck } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { useAuthStore } from '@/stores/auth-store'
-import { formatQuota } from '@/lib/format'
+import { formatQuota, formatTimestampToDate } from '@/lib/format'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -88,6 +88,7 @@ export function SupplierCardSharePage({ token }: SupplierCardSharePageProps) {
 
   const card = shareQuery.data?.data
   const canRedeem = card?.status === SUPPLIER_CARD_STATUS.UNUSED
+  const alreadyRedeemed = card?.status === SUPPLIER_CARD_STATUS.REDEEMED
 
   return (
     <PublicLayout>
@@ -108,6 +109,27 @@ export function SupplierCardSharePage({ token }: SupplierCardSharePageProps) {
                   )}
               </CardDescription>
             </CardHeader>
+          </Card>
+        ) : alreadyRedeemed ? (
+          <Card className='rounded-lg py-0'>
+            <CardHeader className='border-b py-4'>
+              <CardTitle>{t('Current card has been redeemed')}</CardTitle>
+              <CardDescription>
+                {t('This recharge card cannot be redeemed again.')}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className='grid gap-3 p-4 text-sm sm:grid-cols-2'>
+              <div>
+                <div className='text-muted-foreground'>{t('Status')}</div>
+                <div className='mt-1 font-medium'>{t('Redeemed')}</div>
+              </div>
+              <div>
+                <div className='text-muted-foreground'>{t('Redeemed At')}</div>
+                <div className='mt-1 font-medium'>
+                  {formatTimestampToDate(card.redeemed_time)}
+                </div>
+              </div>
+            </CardContent>
           </Card>
         ) : (
           <>

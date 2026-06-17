@@ -47,12 +47,9 @@ export function SupplierCards() {
   const [filters, setFilters] = useState<{
     page: number
     keyword: string
-    status?: number
-    unusedOnly: boolean
   }>({
     page: 1,
     keyword: '',
-    unusedOnly: false,
   })
 
   const userQuery = useQuery({
@@ -72,8 +69,7 @@ export function SupplierCards() {
     p: filters.page,
     page_size: PAGE_SIZE,
     keyword: filters.keyword,
-    status: filters.status,
-    unused_only: filters.unusedOnly,
+    unused_only: true,
   }
 
   const cardsQuery = useQuery({
@@ -142,15 +138,11 @@ export function SupplierCards() {
                 page={filters.page}
                 pageSize={PAGE_SIZE}
                 keyword={filters.keyword}
-                status={filters.status}
-                unusedOnly={filters.unusedOnly}
                 loading={cardsQuery.isLoading || cardsQuery.isFetching}
                 onFilterChange={(next) =>
                   setFilters({
                     page: 1,
                     keyword: next.keyword,
-                    status: next.status,
-                    unusedOnly: next.unusedOnly,
                   })
                 }
                 onPageChange={(page) =>
