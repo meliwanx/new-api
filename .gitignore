@@ -36,6 +36,7 @@ data/
 token_estimator_test.go
 skills-lock.json
 .playwright-mcp
+.superpowers/
 
 # 本地部署敏感信息（含服务器与数据库凭据），禁止入库
 DEPLOYMENT.local.md
