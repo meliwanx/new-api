@@ -100,6 +100,7 @@ func TestPurchaseSupplierCardsCreatesOrderCardsAndDeductsBalance(t *testing.T) {
 	require.Equal(t, 1400, order.TotalDebitQuota)
 	require.NotEmpty(t, cards[0].Code)
 	require.NotEmpty(t, cards[0].ShareToken)
+	require.Len(t, cards[0].ShareToken, SupplierCardShareTokenLength)
 	require.NotEqual(t, cards[0].Code, cards[1].Code)
 	require.Equal(t, order.Id, cards[0].OrderId)
 	require.Equal(t, order.OrderNo, cards[0].OrderNo)

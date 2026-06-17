@@ -19,7 +19,11 @@ For commercial licensing, please contact support@quantumnous.com
 import { useState } from 'react'
 import { ChevronLeft, ChevronRight, Search, Ticket } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
-import { formatCurrencyUSD, formatTimestampToDate } from '@/lib/format'
+import {
+  formatCurrencyUSD,
+  formatQuota,
+  formatTimestampToDate,
+} from '@/lib/format'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -80,7 +84,25 @@ const statusOptions: { value: string; label: string }[] = [
 
 function getShareUrl(token?: string) {
   if (!token || typeof window === 'undefined') return ''
-  return `${window.location.origin}/supplier-card/${token}`
+  return `${window.location.origin}/c/${token}`
+}
+
+function getShareCopyText(
+  card: SupplierCard,
+  shareUrl: string,
+  t: (key: string, options?: Record<string, string>) => string
+) {
+  if (!shareUrl) return ''
+  return [
+    t('Recharge card gift: {{amount}} value, redeemable for {{quota}} quota.', {
+      amount: formatCurrencyUSD(card.amount),
+      quota: formatQuota(card.quota),
+    }),
+    t(
+      'Open the link to preview the card, then sign in to redeem it to your account.'
+    ),
+    shareUrl,
+  ].join('\n')
 }
 
 export function CardHistory({
@@ -192,6 +214,7 @@ export function CardHistory({
           <div className='grid gap-4 md:grid-cols-2 xl:grid-cols-3'>
             {items.map((card) => {
               const shareUrl = getShareUrl(card.share_token)
+              const shareCopyText = getShareCopyText(card, shareUrl, t)
               return (
                 <SupplierCardVisual
                   key={card.id}
@@ -243,11 +266,13 @@ export function CardHistory({
                     )}
                     {shareUrl && (
                       <CopyButton
-                        value={shareUrl}
+                        value={shareCopyText}
                         variant='outline'
                         size='sm'
-                        tooltip={t('Copy share link')}
-                        successTooltip={t('Share link copied')}
+                        tooltip={t('Copy marketing text and redeem link')}
+                        successTooltip={t(
+                          'Marketing text and redeem link copied'
+                        )}
                       >
                         {t('Copy Redeem Link')}
                       </CopyButton>

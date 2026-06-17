@@ -20,6 +20,7 @@ const (
 )
 
 const DefaultSupplierCardMaxPurchaseCount = 100
+const SupplierCardShareTokenLength = 16
 
 type SupplierCardPlan struct {
 	Id          int            `json:"id"`
@@ -225,8 +226,8 @@ func buildSupplierCardCode() string {
 	return strings.ToUpper(common.GetRandomString(24))
 }
 
-func buildSupplierCardShareToken() string {
-	return common.GetUUID()
+func buildSupplierCardShareToken() (string, error) {
+	return common.GenerateRandomCharsKey(SupplierCardShareTokenLength)
 }
 
 func previewSupplierCardSecret(value string) string {
@@ -327,7 +328,10 @@ func PurchaseSupplierCards(userID int, planID int, count int, maxCount int) (*Su
 		cards = make([]*SupplierCard, 0, count)
 		for i := 0; i < count; i++ {
 			code := buildSupplierCardCode()
-			shareToken := buildSupplierCardShareToken()
+			shareToken, err := buildSupplierCardShareToken()
+			if err != nil {
+				return err
+			}
 			cards = append(cards, &SupplierCard{
 				SupplierUserId:    userID,
 				SupplierLevel:     user.SupplierLevel,
