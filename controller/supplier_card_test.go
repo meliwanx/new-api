@@ -1,7 +1,6 @@
 package controller
 
 import (
-	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -35,6 +34,7 @@ func setupSupplierCardControllerTestDB(t *testing.T) *gorm.DB {
 		&model.SupplierCardPlan{},
 		&model.SupplierCardOrder{},
 		&model.SupplierCard{},
+		&model.SupplierCardQuotaLog{},
 	))
 	return db
 }
@@ -50,14 +50,15 @@ func TestGetSupplierCardShareOmitsFullSecrets(t *testing.T) {
 	}
 	require.NoError(t, db.Create(plan).Error)
 	require.NoError(t, db.Create(&model.User{
-		Id:            1,
-		Username:      "supplier",
-		DisplayName:   "Supplier",
-		Password:      "hashed_password",
-		Status:        common.UserStatusEnabled,
-		Quota:         5000,
-		SupplierLevel: 1,
-		AffCode:       "aff1",
+		Id:                1,
+		Username:          "supplier",
+		DisplayName:       "Supplier",
+		Password:          "hashed_password",
+		Status:            common.UserStatusEnabled,
+		Quota:             5000,
+		SupplierLevel:     1,
+		SupplierCardQuota: 5000,
+		AffCode:           "aff1",
 	}).Error)
 	_, cards, err := model.PurchaseSupplierCards(1, 1, 1, 100)
 	require.NoError(t, err)
@@ -71,7 +72,7 @@ func TestGetSupplierCardShareOmitsFullSecrets(t *testing.T) {
 
 	require.Equal(t, http.StatusOK, recorder.Code)
 	var payload map[string]any
-	require.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &payload))
+	require.NoError(t, common.Unmarshal(recorder.Body.Bytes(), &payload))
 	require.Equal(t, true, payload["success"])
 	data, ok := payload["data"].(map[string]any)
 	require.True(t, ok)

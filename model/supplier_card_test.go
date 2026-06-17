@@ -16,6 +16,7 @@ func cleanupSupplierCardTables(t *testing.T) {
 	require.NoError(t, DB.Exec("DELETE FROM supplier_cards").Error)
 	require.NoError(t, DB.Exec("DELETE FROM supplier_card_orders").Error)
 	require.NoError(t, DB.Exec("DELETE FROM supplier_card_plans").Error)
+	require.NoError(t, DB.Exec("DELETE FROM supplier_card_quota_logs").Error)
 	require.NoError(t, DB.Exec("DELETE FROM users").Error)
 	require.NoError(t, DB.Exec("DELETE FROM logs").Error)
 }
@@ -43,18 +44,19 @@ func seedSupplierCardPlan(t *testing.T, db *gorm.DB, id int, amount int64, price
 	return plan
 }
 
-func seedSupplierUser(t *testing.T, db *gorm.DB, id int, supplierLevel int, quota int) *User {
+func seedSupplierUser(t *testing.T, db *gorm.DB, id int, supplierLevel int, quota int, supplierCardQuota int) *User {
 	t.Helper()
 	user := &User{
-		Id:            id,
-		Username:      fmt.Sprintf("supplier_%d", id),
-		DisplayName:   fmt.Sprintf("Supplier %d", id),
-		Password:      "hashed_password",
-		Status:        common.UserStatusEnabled,
-		Role:          common.RoleCommonUser,
-		Quota:         quota,
-		SupplierLevel: supplierLevel,
-		AffCode:       fmt.Sprintf("aff%d", id),
+		Id:                id,
+		Username:          fmt.Sprintf("supplier_%d", id),
+		DisplayName:       fmt.Sprintf("Supplier %d", id),
+		Password:          "hashed_password",
+		Status:            common.UserStatusEnabled,
+		Role:              common.RoleCommonUser,
+		Quota:             quota,
+		SupplierLevel:     supplierLevel,
+		SupplierCardQuota: supplierCardQuota,
+		AffCode:           fmt.Sprintf("aff%d", id),
 	}
 	require.NoError(t, db.Create(user).Error)
 	return user
@@ -72,7 +74,7 @@ func TestPurchaseSupplierCardsRejectsLevelZero(t *testing.T) {
 	cleanupSupplierCardTables(t)
 	withSupplierCardQuotaPerUnit(t, 100)
 	seedSupplierCardPlan(t, DB, 1, 10, supplierCardTestPrices)
-	user := seedSupplierUser(t, DB, 1, 0, 1000000)
+	user := seedSupplierUser(t, DB, 1, 0, 1000000, 1000000)
 
 	_, _, err := PurchaseSupplierCards(user.Id, 1, 1, 100)
 
@@ -80,12 +82,12 @@ func TestPurchaseSupplierCardsRejectsLevelZero(t *testing.T) {
 	require.Contains(t, err.Error(), "not a supplier")
 }
 
-func TestPurchaseSupplierCardsCreatesOrderCardsAndDeductsBalance(t *testing.T) {
+func TestPurchaseSupplierCardsCreatesOrderCardsAndDeductsSupplierCardBalance(t *testing.T) {
 	truncateTables(t)
 	cleanupSupplierCardTables(t)
 	withSupplierCardQuotaPerUnit(t, 100)
 	seedSupplierCardPlan(t, DB, 1, 10, supplierCardTestPrices)
-	user := seedSupplierUser(t, DB, 1, 2, 5000)
+	user := seedSupplierUser(t, DB, 1, 2, 0, 5000)
 
 	order, cards, err := PurchaseSupplierCards(user.Id, 1, 2, 100)
 
@@ -110,24 +112,39 @@ func TestPurchaseSupplierCardsCreatesOrderCardsAndDeductsBalance(t *testing.T) {
 
 	var refreshed User
 	require.NoError(t, DB.First(&refreshed, user.Id).Error)
-	require.Equal(t, 3600, refreshed.Quota)
+	require.Equal(t, 0, refreshed.Quota)
+	require.Equal(t, 3600, refreshed.SupplierCardQuota)
+
+	var movement SupplierCardQuotaLog
+	require.NoError(t, DB.First(&movement, "supplier_user_id = ? AND action = ?", user.Id, "purchase").Error)
+	require.Equal(t, user.Id, movement.SupplierUserId)
+	require.Equal(t, order.Id, movement.OrderId)
+	require.Equal(t, order.OrderNo, movement.OrderNo)
+	require.Equal(t, -1400, movement.QuotaDelta)
+	require.Equal(t, 5000, movement.QuotaBefore)
+	require.Equal(t, 3600, movement.QuotaAfter)
 }
 
-func TestPurchaseSupplierCardsRejectsInsufficientBalance(t *testing.T) {
+func TestPurchaseSupplierCardsRejectsInsufficientSupplierCardBalance(t *testing.T) {
 	truncateTables(t)
 	cleanupSupplierCardTables(t)
 	withSupplierCardQuotaPerUnit(t, 100)
 	seedSupplierCardPlan(t, DB, 1, 10, supplierCardTestPrices)
-	user := seedSupplierUser(t, DB, 1, 1, 100)
+	user := seedSupplierUser(t, DB, 1, 1, 1000000, 100)
 
 	_, _, err := PurchaseSupplierCards(user.Id, 1, 1, 100)
 
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "insufficient balance")
+	require.Contains(t, err.Error(), "insufficient supplier card balance")
 
 	var count int64
 	require.NoError(t, DB.Model(&SupplierCard{}).Count(&count).Error)
 	require.Equal(t, int64(0), count)
+
+	var refreshed User
+	require.NoError(t, DB.First(&refreshed, user.Id).Error)
+	require.Equal(t, 1000000, refreshed.Quota)
+	require.Equal(t, 100, refreshed.SupplierCardQuota)
 }
 
 func TestRedeemSupplierCardAddsQuotaAndRejectsRepeat(t *testing.T) {
@@ -135,8 +152,8 @@ func TestRedeemSupplierCardAddsQuotaAndRejectsRepeat(t *testing.T) {
 	cleanupSupplierCardTables(t)
 	withSupplierCardQuotaPerUnit(t, 100)
 	seedSupplierCardPlan(t, DB, 1, 10, supplierCardTestPrices)
-	supplier := seedSupplierUser(t, DB, 1, 1, 5000)
-	redeemer := seedSupplierUser(t, DB, 2, 0, 25)
+	supplier := seedSupplierUser(t, DB, 1, 1, 0, 5000)
+	redeemer := seedSupplierUser(t, DB, 2, 0, 25, 0)
 	_, cards, err := PurchaseSupplierCards(supplier.Id, 1, 1, 100)
 	require.NoError(t, err)
 
@@ -160,8 +177,8 @@ func TestListSupplierCardsFiltersUnusedAndKeyword(t *testing.T) {
 	cleanupSupplierCardTables(t)
 	withSupplierCardQuotaPerUnit(t, 100)
 	seedSupplierCardPlan(t, DB, 1, 10, supplierCardTestPrices)
-	supplier := seedSupplierUser(t, DB, 1, 1, 5000)
-	redeemer := seedSupplierUser(t, DB, 2, 0, 0)
+	supplier := seedSupplierUser(t, DB, 1, 1, 0, 5000)
+	redeemer := seedSupplierUser(t, DB, 2, 0, 0, 0)
 	_, cards, err := PurchaseSupplierCards(supplier.Id, 1, 2, 100)
 	require.NoError(t, err)
 	_, err = RedeemSupplierCardByShareToken(cards[0].ShareToken, redeemer.Id)
@@ -196,4 +213,40 @@ func TestGetSupplierCardMaxPurchaseCountDefaultAndOverride(t *testing.T) {
 
 	common.OptionMap["SupplierCardMaxPurchaseCount"] = "-1"
 	require.Equal(t, DefaultSupplierCardMaxPurchaseCount, GetSupplierCardMaxPurchaseCount())
+}
+
+func TestAdjustSupplierCardQuotaRecordsAdminMovement(t *testing.T) {
+	truncateTables(t)
+	cleanupSupplierCardTables(t)
+	withSupplierCardQuotaPerUnit(t, 100)
+	supplier := seedSupplierUser(t, DB, 1, 3, 9999, 100)
+
+	updated, movement, err := AdjustSupplierCardQuota(99, supplier.Id, "add", 250, "manual funding")
+
+	require.NoError(t, err)
+	require.Equal(t, 350, updated.SupplierCardQuota)
+	require.Equal(t, 9999, updated.Quota)
+	require.Equal(t, supplier.Id, movement.SupplierUserId)
+	require.Equal(t, 99, movement.OperatorUserId)
+	require.Equal(t, "admin_add", movement.Action)
+	require.Equal(t, 250, movement.QuotaDelta)
+	require.Equal(t, 100, movement.QuotaBefore)
+	require.Equal(t, 350, movement.QuotaAfter)
+	require.Equal(t, "manual funding", movement.Memo)
+
+	var refreshed User
+	require.NoError(t, DB.First(&refreshed, supplier.Id).Error)
+	require.Equal(t, 350, refreshed.SupplierCardQuota)
+	require.Equal(t, 9999, refreshed.Quota)
+}
+
+func TestAdjustSupplierCardQuotaRejectsNormalUser(t *testing.T) {
+	truncateTables(t)
+	cleanupSupplierCardTables(t)
+	normalUser := seedSupplierUser(t, DB, 1, 0, 0, 0)
+
+	_, _, err := AdjustSupplierCardQuota(99, normalUser.Id, "add", 100, "")
+
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "not a supplier")
 }

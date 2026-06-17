@@ -67,11 +67,13 @@ export interface SupplierCardUser {
   username?: string
   display_name?: string
   quota: number
+  supplier_card_quota: number
   supplier_level: number
 }
 
 export interface SupplierCardPlansResponse {
   supplier_level: number
+  supplier_card_quota: number
   max_purchase_count: number
   plans: SupplierCardPlan[]
 }
@@ -117,6 +119,43 @@ export interface SupplierCardRedeemResponse {
 
 export interface SupplierCardSettings {
   max_purchase_count: number
+}
+
+export interface SupplierCardQuotaLog {
+  id: number
+  supplier_user_id: number
+  operator_user_id: number
+  action: string
+  quota_delta: number
+  quota_before: number
+  quota_after: number
+  order_id: number
+  order_no: string
+  memo: string
+  created_time: number
+}
+
+export interface SupplierCardQuotaAdjustPayload {
+  user_id: number
+  mode: 'add' | 'subtract' | 'override'
+  value: number
+  memo?: string
+}
+
+export interface SupplierCardQuotaAdjustResponse {
+  user: SupplierCardUser
+  movement: SupplierCardQuotaLog
+}
+
+export interface SupplierCardQuotaLogListParams {
+  p?: number
+  page_size?: number
+  supplier_user_id?: number
+  operator_user_id?: number
+  action?: string
+  keyword?: string
+  created_time_from?: number
+  created_time_to?: number
 }
 
 export interface SupplierCardStatsByAmount {

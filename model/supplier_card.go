@@ -19,6 +19,13 @@ const (
 	SupplierCardStatusDisabled = 3
 )
 
+const (
+	SupplierCardQuotaActionAdminAdd      = "admin_add"
+	SupplierCardQuotaActionAdminSubtract = "admin_subtract"
+	SupplierCardQuotaActionAdminOverride = "admin_override"
+	SupplierCardQuotaActionPurchase      = "purchase"
+)
+
 const DefaultSupplierCardMaxPurchaseCount = 100
 const SupplierCardShareTokenLength = 16
 
@@ -47,6 +54,20 @@ type SupplierCardOrder struct {
 	TotalPrice      float64 `json:"total_price"`
 	TotalDebitQuota int     `json:"total_debit_quota"`
 	CreatedTime     int64   `json:"created_time" gorm:"bigint;index"`
+}
+
+type SupplierCardQuotaLog struct {
+	Id             int    `json:"id"`
+	SupplierUserId int    `json:"supplier_user_id" gorm:"index"`
+	OperatorUserId int    `json:"operator_user_id" gorm:"index"`
+	Action         string `json:"action" gorm:"type:varchar(32);index"`
+	QuotaDelta     int    `json:"quota_delta"`
+	QuotaBefore    int    `json:"quota_before"`
+	QuotaAfter     int    `json:"quota_after"`
+	OrderId        int    `json:"order_id" gorm:"index"`
+	OrderNo        string `json:"order_no" gorm:"type:varchar(64);index"`
+	Memo           string `json:"memo" gorm:"type:varchar(255)"`
+	CreatedTime    int64  `json:"created_time" gorm:"bigint;index"`
 }
 
 type SupplierCard struct {
@@ -100,6 +121,17 @@ type SupplierCardOrderListQuery struct {
 	Amount          *int64
 	SupplierLevel   *int
 	SupplierUserId  *int
+	Keyword         string
+	CreatedTimeFrom int64
+	CreatedTimeTo   int64
+}
+
+type SupplierCardQuotaLogListQuery struct {
+	Page            int
+	PageSize        int
+	SupplierUserId  *int
+	OperatorUserId  *int
+	Action          string
 	Keyword         string
 	CreatedTimeFrom int64
 	CreatedTimeTo   int64
@@ -241,6 +273,99 @@ func debitQuotaForPrice(price float64) int {
 	return int(math.Round(price * common.QuotaPerUnit))
 }
 
+func recordSupplierCardQuotaLog(tx *gorm.DB, movement *SupplierCardQuotaLog) error {
+	if movement.CreatedTime == 0 {
+		movement.CreatedTime = common.GetTimestamp()
+	}
+	return tx.Create(movement).Error
+}
+
+func AdjustSupplierCardQuota(operatorUserID int, supplierUserID int, mode string, value int, memo string) (*User, *SupplierCardQuotaLog, error) {
+	if operatorUserID <= 0 {
+		return nil, nil, errors.New("invalid operator user id")
+	}
+	if supplierUserID <= 0 {
+		return nil, nil, errors.New("invalid supplier user id")
+	}
+	mode = strings.TrimSpace(mode)
+	memo = strings.TrimSpace(memo)
+	memoRunes := []rune(memo)
+	if len(memoRunes) > 255 {
+		memo = string(memoRunes[:255])
+	}
+
+	var user *User
+	var movement *SupplierCardQuotaLog
+	err := DB.Transaction(func(tx *gorm.DB) error {
+		lockedUser := &User{}
+		if err := tx.Set("gorm:query_option", "FOR UPDATE").First(lockedUser, "id = ?", supplierUserID).Error; err != nil {
+			return err
+		}
+		if err := ValidateSupplierLevel(lockedUser.SupplierLevel); err != nil {
+			return err
+		}
+		if lockedUser.SupplierLevel == 0 {
+			return errors.New("not a supplier")
+		}
+
+		before := lockedUser.SupplierCardQuota
+		after := before
+		action := ""
+		switch mode {
+		case "add":
+			if value <= 0 {
+				return errors.New("supplier card balance change must be positive")
+			}
+			after = before + value
+			action = SupplierCardQuotaActionAdminAdd
+		case "subtract":
+			if value <= 0 {
+				return errors.New("supplier card balance change must be positive")
+			}
+			if before < value {
+				return errors.New("insufficient supplier card balance")
+			}
+			after = before - value
+			action = SupplierCardQuotaActionAdminSubtract
+		case "override":
+			if value < 0 {
+				return errors.New("supplier card balance cannot be negative")
+			}
+			after = value
+			action = SupplierCardQuotaActionAdminOverride
+		default:
+			return errors.New("invalid supplier card balance adjustment mode")
+		}
+
+		delta := after - before
+		if err := tx.Model(&User{}).Where("id = ?", supplierUserID).Update("supplier_card_quota", after).Error; err != nil {
+			return err
+		}
+		movement = &SupplierCardQuotaLog{
+			SupplierUserId: supplierUserID,
+			OperatorUserId: operatorUserID,
+			Action:         action,
+			QuotaDelta:     delta,
+			QuotaBefore:    before,
+			QuotaAfter:     after,
+			Memo:           memo,
+			CreatedTime:    common.GetTimestamp(),
+		}
+		if err := recordSupplierCardQuotaLog(tx, movement); err != nil {
+			return err
+		}
+		lockedUser.SupplierCardQuota = after
+		user = lockedUser
+		return nil
+	})
+	if err != nil {
+		return nil, nil, err
+	}
+
+	RecordLog(operatorUserID, LogTypeManage, fmt.Sprintf("调整供应商用户 %d 购卡专属余额，变化 %s，调整后 %s", supplierUserID, logger.LogQuota(movement.QuotaDelta), logger.LogQuota(movement.QuotaAfter)))
+	return user, movement, nil
+}
+
 func normalizeSupplierCardPagination(page int, pageSize int) (int, int) {
 	if page <= 0 {
 		page = 1
@@ -298,8 +423,8 @@ func PurchaseSupplierCards(userID int, planID int, count int, maxCount int) (*Su
 		if totalDebitQuota <= 0 {
 			return errors.New("supplier card price is too low")
 		}
-		if user.Quota < totalDebitQuota {
-			return errors.New("insufficient balance")
+		if user.SupplierCardQuota < totalDebitQuota {
+			return errors.New("insufficient supplier card balance")
 		}
 
 		now := common.GetTimestamp()
@@ -320,7 +445,22 @@ func PurchaseSupplierCards(userID int, planID int, count int, maxCount int) (*Su
 			return err
 		}
 
-		if err := tx.Model(&User{}).Where("id = ?", userID).Update("quota", gorm.Expr("quota - ?", totalDebitQuota)).Error; err != nil {
+		quotaBefore := user.SupplierCardQuota
+		quotaAfter := quotaBefore - totalDebitQuota
+		if err := tx.Model(&User{}).Where("id = ?", userID).Update("supplier_card_quota", gorm.Expr("supplier_card_quota - ?", totalDebitQuota)).Error; err != nil {
+			return err
+		}
+		if err := recordSupplierCardQuotaLog(tx, &SupplierCardQuotaLog{
+			SupplierUserId: userID,
+			Action:         SupplierCardQuotaActionPurchase,
+			QuotaDelta:     -totalDebitQuota,
+			QuotaBefore:    quotaBefore,
+			QuotaAfter:     quotaAfter,
+			OrderId:        order.Id,
+			OrderNo:        order.OrderNo,
+			Memo:           fmt.Sprintf("purchase %d supplier cards", count),
+			CreatedTime:    now,
+		}); err != nil {
 			return err
 		}
 
@@ -357,7 +497,7 @@ func PurchaseSupplierCards(userID int, planID int, count int, maxCount int) (*Su
 		return nil, nil, err
 	}
 
-	RecordLog(userID, LogTypeTopup, fmt.Sprintf("供应商购买充值卡 %d 张，面额 %s，扣除 %s", len(cards), logger.LogQuota(order.Quota), logger.LogQuota(order.TotalDebitQuota)))
+	RecordLog(userID, LogTypeTopup, fmt.Sprintf("供应商购买充值卡 %d 张，面额 %s，扣除购卡专属余额 %s", len(cards), logger.LogQuota(order.Quota), logger.LogQuota(order.TotalDebitQuota)))
 	return order, cards, nil
 }
 
@@ -495,6 +635,42 @@ func ListAdminSupplierCardOrders(query SupplierCardOrderListQuery) ([]*SupplierC
 		return nil, 0, err
 	}
 	return orders, total, nil
+}
+
+func ListSupplierCardQuotaLogs(query SupplierCardQuotaLogListQuery) ([]*SupplierCardQuotaLog, int64, error) {
+	page, pageSize := normalizeSupplierCardPagination(query.Page, query.PageSize)
+	db := DB.Model(&SupplierCardQuotaLog{})
+	if query.SupplierUserId != nil {
+		db = db.Where("supplier_user_id = ?", *query.SupplierUserId)
+	}
+	if query.OperatorUserId != nil {
+		db = db.Where("operator_user_id = ?", *query.OperatorUserId)
+	}
+	if strings.TrimSpace(query.Action) != "" {
+		db = db.Where("action = ?", strings.TrimSpace(query.Action))
+	}
+	if query.CreatedTimeFrom > 0 {
+		db = db.Where("created_time >= ?", query.CreatedTimeFrom)
+	}
+	if query.CreatedTimeTo > 0 {
+		db = db.Where("created_time <= ?", query.CreatedTimeTo)
+	}
+	if strings.TrimSpace(query.Keyword) != "" {
+		pattern, err := sanitizeLikePattern(query.Keyword)
+		if err != nil {
+			return nil, 0, err
+		}
+		db = db.Where("order_no LIKE ? ESCAPE '!' OR memo LIKE ? ESCAPE '!'", pattern, pattern)
+	}
+	var total int64
+	if err := db.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+	var logs []*SupplierCardQuotaLog
+	if err := db.Order("id desc").Limit(pageSize).Offset((page - 1) * pageSize).Find(&logs).Error; err != nil {
+		return nil, 0, err
+	}
+	return logs, total, nil
 }
 
 func applySupplierCardAdminFilters(db *gorm.DB, query SupplierCardAdminListQuery) *gorm.DB {

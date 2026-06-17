@@ -29,6 +29,10 @@ import type {
   SupplierCardPlanPayload,
   SupplierCardPlansResponse,
   SupplierCardPurchaseResponse,
+  SupplierCardQuotaAdjustPayload,
+  SupplierCardQuotaAdjustResponse,
+  SupplierCardQuotaLog,
+  SupplierCardQuotaLogListParams,
   SupplierCardRedeemResponse,
   SupplierCardSettings,
   SupplierCardShare,
@@ -134,6 +138,21 @@ export async function adminGetSupplierCardStats(
 ): Promise<ApiResponse<SupplierCardStats>> {
   const query = buildSearchParams(params)
   const res = await api.get(`/api/supplier-cards/admin/stats?${query}`)
+  return res.data
+}
+
+export async function adminAdjustSupplierCardQuota(
+  request: SupplierCardQuotaAdjustPayload
+): Promise<ApiResponse<SupplierCardQuotaAdjustResponse>> {
+  const res = await api.post('/api/supplier-cards/admin/balance', request)
+  return res.data
+}
+
+export async function adminGetSupplierCardQuotaLogs(
+  params: SupplierCardQuotaLogListParams = {}
+): Promise<ApiResponse<SupplierCardPageResponse<SupplierCardQuotaLog>>> {
+  const query = buildSearchParams({ p: 1, page_size: 10, ...params })
+  const res = await api.get(`/api/supplier-cards/admin/balance-logs?${query}`)
   return res.data
 }
 

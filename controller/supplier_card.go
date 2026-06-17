@@ -27,6 +27,13 @@ type supplierCardSettingsRequest struct {
 	MaxPurchaseCount int `json:"max_purchase_count"`
 }
 
+type supplierCardQuotaAdjustRequest struct {
+	UserId int    `json:"user_id"`
+	Mode   string `json:"mode"`
+	Value  int    `json:"value"`
+	Memo   string `json:"memo"`
+}
+
 type supplierCardShareResponse struct {
 	Id                  int     `json:"id"`
 	Amount              int64   `json:"amount"`
@@ -97,9 +104,10 @@ func GetSupplierCardPlans(c *gin.Context) {
 		items = append(items, supplierCardPlanWithPrice{SupplierCardPlan: plan, Price: price})
 	}
 	common.ApiSuccess(c, gin.H{
-		"supplier_level":     user.SupplierLevel,
-		"max_purchase_count": model.GetSupplierCardMaxPurchaseCount(),
-		"plans":              items,
+		"supplier_level":      user.SupplierLevel,
+		"supplier_card_quota": user.SupplierCardQuota,
+		"max_purchase_count":  model.GetSupplierCardMaxPurchaseCount(),
+		"plans":               items,
 	})
 }
 
@@ -291,6 +299,54 @@ func AdminListSupplierCardOrders(c *gin.Context) {
 		Amount:          amount,
 		SupplierLevel:   level,
 		SupplierUserId:  supplierUserId,
+		Keyword:         c.Query("keyword"),
+		CreatedTimeFrom: parseInt64Query(c, "created_time_from"),
+		CreatedTimeTo:   parseInt64Query(c, "created_time_to"),
+	})
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	pageInfo.SetTotal(int(total))
+	pageInfo.SetItems(items)
+	common.ApiSuccess(c, pageInfo)
+}
+
+func AdminAdjustSupplierCardQuota(c *gin.Context) {
+	var req supplierCardQuotaAdjustRequest
+	if err := common.DecodeJson(c.Request.Body, &req); err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	user, movement, err := model.AdjustSupplierCardQuota(c.GetInt("id"), req.UserId, req.Mode, req.Value, req.Memo)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	common.ApiSuccess(c, gin.H{
+		"user":     user,
+		"movement": movement,
+	})
+}
+
+func AdminListSupplierCardQuotaLogs(c *gin.Context) {
+	pageInfo := common.GetPageQuery(c)
+	supplierUserId, err := parseOptionalIntQuery(c, "supplier_user_id")
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	operatorUserId, err := parseOptionalIntQuery(c, "operator_user_id")
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	items, total, err := model.ListSupplierCardQuotaLogs(model.SupplierCardQuotaLogListQuery{
+		Page:            pageInfo.GetPage(),
+		PageSize:        pageInfo.GetPageSize(),
+		SupplierUserId:  supplierUserId,
+		OperatorUserId:  operatorUserId,
+		Action:          c.Query("action"),
 		Keyword:         c.Query("keyword"),
 		CreatedTimeFrom: parseInt64Query(c, "created_time_from"),
 		CreatedTimeTo:   parseInt64Query(c, "created_time_to"),

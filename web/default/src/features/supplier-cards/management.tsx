@@ -16,16 +16,18 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   BarChart3,
   CreditCard,
   Edit3,
+  History,
   Save,
   Settings2,
   SlidersHorizontal,
   TicketPercent,
+  WalletCards,
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -33,7 +35,9 @@ import {
   formatCurrencyUSD,
   formatQuota,
   formatTimestampToDate,
+  parseQuotaFromDollars,
 } from '@/lib/format'
+import { getCurrencyLabel } from '@/lib/currency'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -75,10 +79,13 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Textarea } from '@/components/ui/textarea'
 import { SectionPageLayout } from '@/components/layout'
 import { StatusBadge } from '@/components/status-badge'
 import {
+  adminAdjustSupplierCardQuota,
   adminCreateSupplierCardPlan,
+  adminGetSupplierCardQuotaLogs,
   adminGetSupplierCardOrders,
   adminGetSupplierCardPlans,
   adminGetSupplierCards,
@@ -94,6 +101,8 @@ import {
   type SupplierCardOrderListParams,
   type SupplierCardPlan,
   type SupplierCardPlanPayload,
+  type SupplierCardQuotaAdjustPayload,
+  type SupplierCardQuotaLogListParams,
 } from './types'
 
 const LEVELS = Array.from({ length: 10 }, (_, index) => index + 1)
@@ -125,6 +134,26 @@ const defaultFilters: FilterState = {
   createdTo: '',
   redeemedFrom: '',
   redeemedTo: '',
+}
+
+type BalanceFilterState = {
+  page: number
+  keyword: string
+  action: string
+  supplierUserId: string
+  operatorUserId: string
+  createdFrom: string
+  createdTo: string
+}
+
+const defaultBalanceFilters: BalanceFilterState = {
+  page: 1,
+  keyword: '',
+  action: 'all',
+  supplierUserId: '',
+  operatorUserId: '',
+  createdFrom: '',
+  createdTo: '',
 }
 
 function numberOrUndefined(value: string) {
@@ -191,6 +220,36 @@ function buildOrderParams(filters: FilterState): SupplierCardOrderListParams {
   }
 }
 
+function buildBalanceLogParams(
+  filters: BalanceFilterState
+): SupplierCardQuotaLogListParams {
+  return {
+    p: filters.page,
+    page_size: PAGE_SIZE,
+    keyword: filters.keyword.trim(),
+    action: filters.action === 'all' ? undefined : filters.action,
+    supplier_user_id: numberOrUndefined(filters.supplierUserId),
+    operator_user_id: numberOrUndefined(filters.operatorUserId),
+    created_time_from: timeOrUndefined(filters.createdFrom),
+    created_time_to: timeOrUndefined(filters.createdTo),
+  }
+}
+
+function getBalanceActionLabel(action: string) {
+  switch (action) {
+    case 'admin_add':
+      return 'Admin Added'
+    case 'admin_subtract':
+      return 'Admin Subtracted'
+    case 'admin_override':
+      return 'Admin Overrode'
+    case 'purchase':
+      return 'Card Purchase'
+    default:
+      return action || 'Unknown'
+  }
+}
+
 function PlanEditor({
   plans,
   saving,
@@ -203,35 +262,6 @@ function PlanEditor({
   const { t } = useTranslation()
   const [editingId, setEditingId] = useState<number | null>(null)
   const editingPlan = plans.find((plan) => plan.id === editingId) ?? null
-  const [amount, setAmount] = useState(10)
-  const [sortOrder, setSortOrder] = useState(0)
-  const [enabled, setEnabled] = useState(true)
-  const [prices, setPrices] = useState<Record<string, number>>(
-    makeDefaultPrices(10)
-  )
-
-  useEffect(() => {
-    if (!editingPlan) {
-      setAmount(10)
-      setSortOrder(0)
-      setEnabled(true)
-      setPrices(makeDefaultPrices(10))
-      return
-    }
-    setAmount(editingPlan.amount)
-    setSortOrder(editingPlan.sort_order)
-    setEnabled(editingPlan.enabled)
-    setPrices(parsePlanPrices(editingPlan))
-  }, [editingPlan])
-
-  const handleSubmit = () => {
-    onSave(editingId, {
-      amount,
-      sort_order: sortOrder,
-      enabled,
-      prices,
-    })
-  }
 
   return (
     <div className='grid gap-4 xl:grid-cols-[minmax(0,1fr)_380px]'>
@@ -285,81 +315,234 @@ function PlanEditor({
         </CardContent>
       </Card>
 
-      <Card className='rounded-lg py-0'>
-        <CardHeader className='border-b py-4'>
-          <CardTitle>{editingPlan ? t('Edit Plan') : t('New Plan')}</CardTitle>
-          <CardDescription>
-            {t('Set supplier purchase prices for levels 1 to 10.')}
-          </CardDescription>
-          <CardAction>
-            <Button
-              variant='outline'
-              size='sm'
-              onClick={() => setEditingId(null)}
-            >
-              {t('New')}
-            </Button>
-          </CardAction>
-        </CardHeader>
-        <CardContent className='flex flex-col gap-4 p-4'>
-          <FieldGroup className='gap-4'>
-            <div className='grid gap-3 sm:grid-cols-2'>
-              <Field>
-                <FieldLabel>{t('Face Value')}</FieldLabel>
-                <Input
-                  type='number'
-                  min={1}
-                  value={amount}
-                  onChange={(event) => setAmount(Number(event.target.value))}
-                />
-              </Field>
-              <Field>
-                <FieldLabel>{t('Sort Order')}</FieldLabel>
-                <Input
-                  type='number'
-                  value={sortOrder}
-                  onChange={(event) => setSortOrder(Number(event.target.value))}
-                />
-              </Field>
-            </div>
-            <Field orientation='horizontal'>
-              <Switch checked={enabled} onCheckedChange={setEnabled} />
-              <div>
-                <FieldLabel>{t('Enabled')}</FieldLabel>
-                <FieldDescription>
-                  {t('Disabled plans are hidden from suppliers.')}
-                </FieldDescription>
-              </div>
-            </Field>
-          </FieldGroup>
-
-          <div className='grid gap-2 sm:grid-cols-2'>
-            {LEVELS.map((level) => (
-              <Field key={level} className='gap-1'>
-                <FieldLabel>{t('Level {{level}} Price', { level })}</FieldLabel>
-                <Input
-                  type='number'
-                  min={0}
-                  step='0.01'
-                  value={prices[String(level)] ?? 0}
-                  onChange={(event) =>
-                    setPrices((current) => ({
-                      ...current,
-                      [String(level)]: Number(event.target.value),
-                    }))
-                  }
-                />
-              </Field>
-            ))}
-          </div>
-
-          <Button disabled={saving} onClick={handleSubmit}>
-            <Save data-icon='inline-start' />
-            {t('Save Plan')}
-          </Button>
-        </CardContent>
-      </Card>
+      <PlanForm
+        key={editingPlan?.id ?? 'new'}
+        editingPlan={editingPlan}
+        saving={saving}
+        onNew={() => setEditingId(null)}
+        onSave={onSave}
+      />
     </div>
+  )
+}
+
+function PlanForm({
+  editingPlan,
+  saving,
+  onNew,
+  onSave,
+}: {
+  editingPlan: SupplierCardPlan | null
+  saving: boolean
+  onNew: () => void
+  onSave: (id: number | null, payload: SupplierCardPlanPayload) => void
+}) {
+  const { t } = useTranslation()
+  const [amount, setAmount] = useState(editingPlan?.amount ?? 10)
+  const [sortOrder, setSortOrder] = useState(editingPlan?.sort_order ?? 0)
+  const [enabled, setEnabled] = useState(editingPlan?.enabled ?? true)
+  const [prices, setPrices] = useState<Record<string, number>>(
+    parsePlanPrices(editingPlan)
+  )
+
+  const handleSubmit = () => {
+    onSave(editingPlan?.id ?? null, {
+      amount,
+      sort_order: sortOrder,
+      enabled,
+      prices,
+    })
+  }
+
+  return (
+    <Card className='rounded-lg py-0'>
+      <CardHeader className='border-b py-4'>
+        <CardTitle>{editingPlan ? t('Edit Plan') : t('New Plan')}</CardTitle>
+        <CardDescription>
+          {t('Set supplier purchase prices for levels 1 to 10.')}
+        </CardDescription>
+        <CardAction>
+          <Button variant='outline' size='sm' onClick={onNew}>
+            {t('New')}
+          </Button>
+        </CardAction>
+      </CardHeader>
+      <CardContent className='flex flex-col gap-4 p-4'>
+        <FieldGroup className='gap-4'>
+          <div className='grid gap-3 sm:grid-cols-2'>
+            <Field>
+              <FieldLabel>{t('Face Value')}</FieldLabel>
+              <Input
+                type='number'
+                min={1}
+                value={amount}
+                onChange={(event) => setAmount(Number(event.target.value))}
+              />
+            </Field>
+            <Field>
+              <FieldLabel>{t('Sort Order')}</FieldLabel>
+              <Input
+                type='number'
+                value={sortOrder}
+                onChange={(event) => setSortOrder(Number(event.target.value))}
+              />
+            </Field>
+          </div>
+          <Field orientation='horizontal'>
+            <Switch checked={enabled} onCheckedChange={setEnabled} />
+            <div>
+              <FieldLabel>{t('Enabled')}</FieldLabel>
+              <FieldDescription>
+                {t('Disabled plans are hidden from suppliers.')}
+              </FieldDescription>
+            </div>
+          </Field>
+        </FieldGroup>
+
+        <div className='grid gap-2 sm:grid-cols-2'>
+          {LEVELS.map((level) => (
+            <Field key={level} className='gap-1'>
+              <FieldLabel>{t('Level {{level}} Price', { level })}</FieldLabel>
+              <Input
+                type='number'
+                min={0}
+                step='0.01'
+                value={prices[String(level)] ?? 0}
+                onChange={(event) =>
+                  setPrices((current) => ({
+                    ...current,
+                    [String(level)]: Number(event.target.value),
+                  }))
+                }
+              />
+            </Field>
+          ))}
+        </div>
+
+        <Button disabled={saving} onClick={handleSubmit}>
+          <Save data-icon='inline-start' />
+          {t('Save Plan')}
+        </Button>
+      </CardContent>
+    </Card>
+  )
+}
+
+function BalanceAdjustmentPanel({
+  saving,
+  onAdjust,
+}: {
+  saving: boolean
+  onAdjust: (payload: SupplierCardQuotaAdjustPayload) => void
+}) {
+  const { t } = useTranslation()
+  const currencyLabel = getCurrencyLabel()
+  const [userId, setUserId] = useState('')
+  const [mode, setMode] =
+    useState<SupplierCardQuotaAdjustPayload['mode']>('add')
+  const [amount, setAmount] = useState('')
+  const [memo, setMemo] = useState('')
+
+  const amountValue = Number(amount)
+  const parsedQuota =
+    mode === 'override'
+      ? parseQuotaFromDollars(amountValue)
+      : parseQuotaFromDollars(Math.abs(amountValue))
+  const parsedUserId = Number(userId)
+  const canSubmit =
+    Number.isInteger(parsedUserId) &&
+    parsedUserId > 0 &&
+    Number.isFinite(amountValue) &&
+    (mode === 'override' ? parsedQuota >= 0 : parsedQuota > 0)
+
+  const handleSubmit = () => {
+    if (!canSubmit) return
+    onAdjust({
+      user_id: parsedUserId,
+      mode,
+      value: parsedQuota,
+      memo: memo.trim(),
+    })
+  }
+
+  return (
+    <Card className='rounded-lg py-0'>
+      <CardHeader className='border-b py-4'>
+        <CardTitle>{t('Card Purchase Balance')}</CardTitle>
+        <CardDescription>
+          {t(
+            'Recharge or correct the dedicated balance suppliers use to buy cards.'
+          )}
+        </CardDescription>
+      </CardHeader>
+      <CardContent className='flex flex-col gap-4 p-4'>
+        <FieldGroup className='gap-4'>
+          <div className='grid gap-3 sm:grid-cols-3'>
+            <Field>
+              <FieldLabel>{t('Supplier User ID')}</FieldLabel>
+              <Input
+                type='number'
+                min={1}
+                value={userId}
+                onChange={(event) => setUserId(event.target.value)}
+              />
+            </Field>
+            <Field>
+              <FieldLabel>{t('Mode')}</FieldLabel>
+              <Select
+                value={mode}
+                onValueChange={(value) =>
+                  setMode(value as SupplierCardQuotaAdjustPayload['mode'])
+                }
+              >
+                <SelectTrigger className='w-full'>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    <SelectItem value='add'>{t('Add')}</SelectItem>
+                    <SelectItem value='subtract'>{t('Subtract')}</SelectItem>
+                    <SelectItem value='override'>{t('Override')}</SelectItem>
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            </Field>
+            <Field>
+              <FieldLabel>
+                {t('Amount')} ({currencyLabel})
+              </FieldLabel>
+              <Input
+                type='number'
+                step='0.000001'
+                min={mode === 'override' ? 0 : 0.000001}
+                value={amount}
+                onChange={(event) => setAmount(event.target.value)}
+              />
+              <FieldDescription>
+                {t('Internal quota value: {{quota}}', {
+                  quota: formatQuota(parsedQuota),
+                })}
+              </FieldDescription>
+            </Field>
+          </div>
+          <Field>
+            <FieldLabel>{t('Memo')}</FieldLabel>
+            <Textarea
+              value={memo}
+              maxLength={255}
+              onChange={(event) => setMemo(event.target.value)}
+              placeholder={t('Optional internal note')}
+            />
+          </Field>
+        </FieldGroup>
+        <div className='flex justify-end'>
+          <Button disabled={!canSubmit || saving} onClick={handleSubmit}>
+            <WalletCards data-icon='inline-start' />
+            {saving ? t('Processing...') : t('Adjust Balance')}
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
   )
 }
 
@@ -367,10 +550,16 @@ export function SupplierCardManagement() {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
   const [filters, setFilters] = useState<FilterState>(defaultFilters)
-  const [maxPurchaseCount, setMaxPurchaseCount] = useState(100)
+  const [balanceFilters, setBalanceFilters] =
+    useState<BalanceFilterState>(defaultBalanceFilters)
+  const [maxPurchaseCountInput, setMaxPurchaseCountInput] = useState('')
 
   const cardParams = useMemo(() => buildCardParams(filters), [filters])
   const orderParams = useMemo(() => buildOrderParams(filters), [filters])
+  const balanceLogParams = useMemo(
+    () => buildBalanceLogParams(balanceFilters),
+    [balanceFilters]
+  )
 
   const plansQuery = useQuery({
     queryKey: ['supplier-cards-admin', 'plans'],
@@ -392,11 +581,17 @@ export function SupplierCardManagement() {
     queryKey: ['supplier-cards-admin', 'cards', cardParams],
     queryFn: () => adminGetSupplierCards(cardParams),
   })
+  const balanceLogsQuery = useQuery({
+    queryKey: ['supplier-cards-admin', 'balance-logs', balanceLogParams],
+    queryFn: () => adminGetSupplierCardQuotaLogs(balanceLogParams),
+  })
 
-  useEffect(() => {
-    const value = settingsQuery.data?.data?.max_purchase_count
-    if (value) setMaxPurchaseCount(value)
-  }, [settingsQuery.data?.data?.max_purchase_count])
+  const maxPurchaseCount =
+    maxPurchaseCountInput === ''
+      ? (settingsQuery.data?.data?.max_purchase_count ?? 100)
+      : Number(maxPurchaseCountInput)
+  const maxPurchaseCountValue =
+    maxPurchaseCountInput === '' ? String(maxPurchaseCount) : maxPurchaseCountInput
 
   const planMutation = useMutation({
     mutationFn: ({
@@ -429,18 +624,38 @@ export function SupplierCardManagement() {
     },
   })
 
+  const balanceMutation = useMutation({
+    mutationFn: adminAdjustSupplierCardQuota,
+    onSuccess: async (response) => {
+      if (!response.success) return
+      toast.success(t('Supplier card balance adjusted.'))
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['supplier-cards-admin'] }),
+        queryClient.invalidateQueries({ queryKey: ['supplier-cards'] }),
+      ])
+    },
+  })
+
   const plans = plansQuery.data?.data ?? []
   const stats = statsQuery.data?.data
   const orders = ordersQuery.data?.data
   const cards = cardsQuery.data?.data
+  const balanceLogs = balanceLogsQuery.data?.data
   const totalOrderPages = Math.max(
     1,
     Math.ceil((orders?.total ?? 0) / PAGE_SIZE)
   )
   const totalCardPages = Math.max(1, Math.ceil((cards?.total ?? 0) / PAGE_SIZE))
+  const totalBalanceLogPages = Math.max(
+    1,
+    Math.ceil((balanceLogs?.total ?? 0) / PAGE_SIZE)
+  )
 
   const updateFilter = (key: keyof FilterState, value: string) => {
     setFilters((current) => ({ ...current, [key]: value, page: 1 }))
+  }
+  const updateBalanceFilter = (key: keyof BalanceFilterState, value: string) => {
+    setBalanceFilters((current) => ({ ...current, [key]: value, page: 1 }))
   }
 
   return (
@@ -499,6 +714,9 @@ export function SupplierCardManagement() {
           <Tabs defaultValue='plans'>
             <TabsList>
               <TabsTrigger value='plans'>{t('Plans')}</TabsTrigger>
+              <TabsTrigger value='balances'>
+                {t('Purchase Balances')}
+              </TabsTrigger>
               <TabsTrigger value='orders'>{t('Sales Orders')}</TabsTrigger>
               <TabsTrigger value='cards'>
                 {t('Cards & Redemptions')}
@@ -520,9 +738,9 @@ export function SupplierCardManagement() {
                       type='number'
                       min={1}
                       max={1000}
-                      value={maxPurchaseCount}
+                      value={maxPurchaseCountValue}
                       onChange={(event) =>
-                        setMaxPurchaseCount(Number(event.target.value))
+                        setMaxPurchaseCountInput(event.target.value)
                       }
                     />
                   </Field>
@@ -549,6 +767,118 @@ export function SupplierCardManagement() {
                   onSave={(id, payload) => planMutation.mutate({ id, payload })}
                 />
               )}
+            </TabsContent>
+
+            <TabsContent value='balances' className='flex flex-col gap-4'>
+              <BalanceAdjustmentPanel
+                saving={balanceMutation.isPending}
+                onAdjust={(payload) => balanceMutation.mutate(payload)}
+              />
+              <BalanceFilterPanel
+                filters={balanceFilters}
+                updateFilter={updateBalanceFilter}
+              />
+              <Card className='rounded-lg py-0'>
+                <CardHeader className='border-b py-4'>
+                  <CardTitle>{t('Balance Movements')}</CardTitle>
+                  <CardDescription>
+                    {t(
+                      'Audit supplier card purchase balance funding and purchase deductions.'
+                    )}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className='p-0'>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>{t('Supplier')}</TableHead>
+                        <TableHead>{t('Action')}</TableHead>
+                        <TableHead>{t('Change')}</TableHead>
+                        <TableHead>{t('Before')}</TableHead>
+                        <TableHead>{t('After')}</TableHead>
+                        <TableHead>{t('Operator')}</TableHead>
+                        <TableHead>{t('Order No.')}</TableHead>
+                        <TableHead>{t('Memo')}</TableHead>
+                        <TableHead>{t('Created At')}</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {balanceLogsQuery.isLoading ? (
+                        <TableRow>
+                          <TableCell colSpan={9}>
+                            <Skeleton className='h-16 rounded-lg' />
+                          </TableCell>
+                        </TableRow>
+                      ) : (balanceLogs?.items ?? []).length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={9}>
+                            <Empty>
+                              <EmptyHeader>
+                                <EmptyMedia variant='icon'>
+                                  <History />
+                                </EmptyMedia>
+                                <EmptyTitle>
+                                  {t('No balance movements found')}
+                                </EmptyTitle>
+                              </EmptyHeader>
+                            </Empty>
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        balanceLogs?.items.map((movement) => (
+                          <TableRow key={movement.id}>
+                            <TableCell>#{movement.supplier_user_id}</TableCell>
+                            <TableCell>
+                              <StatusBadge
+                                label={t(getBalanceActionLabel(movement.action))}
+                                variant={
+                                  movement.action === 'purchase'
+                                    ? 'neutral'
+                                    : movement.quota_delta >= 0
+                                      ? 'success'
+                                      : 'warning'
+                                }
+                                copyable={false}
+                              />
+                            </TableCell>
+                            <TableCell className='font-mono font-semibold'>
+                              {movement.quota_delta > 0 ? '+' : ''}
+                              {formatQuota(movement.quota_delta)}
+                            </TableCell>
+                            <TableCell className='font-mono'>
+                              {formatQuota(movement.quota_before)}
+                            </TableCell>
+                            <TableCell className='font-mono'>
+                              {formatQuota(movement.quota_after)}
+                            </TableCell>
+                            <TableCell>
+                              {movement.operator_user_id
+                                ? `#${movement.operator_user_id}`
+                                : '-'}
+                            </TableCell>
+                            <TableCell className='font-mono'>
+                              {movement.order_no || '-'}
+                            </TableCell>
+                            <TableCell className='max-w-48 truncate'>
+                              {movement.memo || '-'}
+                            </TableCell>
+                            <TableCell>
+                              {formatTimestampToDate(movement.created_time)}
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+              <PaginationBar
+                page={balanceFilters.page}
+                totalPages={totalBalanceLogPages}
+                onPageChange={(page) =>
+                  setBalanceFilters((current) => ({ ...current, page }))
+                }
+              />
             </TabsContent>
 
             <TabsContent value='orders' className='flex flex-col gap-4'>
@@ -920,6 +1250,96 @@ function FilterPanel({
             </Field>
           </>
         )}
+      </CardContent>
+    </Card>
+  )
+}
+
+function BalanceFilterPanel({
+  filters,
+  updateFilter,
+}: {
+  filters: BalanceFilterState
+  updateFilter: (key: keyof BalanceFilterState, value: string) => void
+}) {
+  const { t } = useTranslation()
+
+  return (
+    <Card className='rounded-lg py-0'>
+      <CardHeader className='border-b py-4'>
+        <CardTitle>{t('Balance Filters')}</CardTitle>
+      </CardHeader>
+      <CardContent className='grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-4'>
+        <Field>
+          <FieldLabel>{t('Keyword')}</FieldLabel>
+          <Input
+            value={filters.keyword}
+            placeholder={t('Order No. or memo')}
+            onChange={(event) => updateFilter('keyword', event.target.value)}
+          />
+        </Field>
+        <Field>
+          <FieldLabel>{t('Action')}</FieldLabel>
+          <Select
+            value={filters.action}
+            onValueChange={(value) => updateFilter('action', value ?? 'all')}
+          >
+            <SelectTrigger className='w-full'>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                <SelectItem value='all'>{t('All actions')}</SelectItem>
+                <SelectItem value='admin_add'>{t('Admin Added')}</SelectItem>
+                <SelectItem value='admin_subtract'>
+                  {t('Admin Subtracted')}
+                </SelectItem>
+                <SelectItem value='admin_override'>
+                  {t('Admin Overrode')}
+                </SelectItem>
+                <SelectItem value='purchase'>{t('Card Purchase')}</SelectItem>
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+        </Field>
+        <Field>
+          <FieldLabel>{t('Supplier User ID')}</FieldLabel>
+          <Input
+            value={filters.supplierUserId}
+            type='number'
+            onChange={(event) =>
+              updateFilter('supplierUserId', event.target.value)
+            }
+          />
+        </Field>
+        <Field>
+          <FieldLabel>{t('Operator User ID')}</FieldLabel>
+          <Input
+            value={filters.operatorUserId}
+            type='number'
+            onChange={(event) =>
+              updateFilter('operatorUserId', event.target.value)
+            }
+          />
+        </Field>
+        <Field>
+          <FieldLabel>{t('Created From')}</FieldLabel>
+          <Input
+            value={filters.createdFrom}
+            type='datetime-local'
+            onChange={(event) =>
+              updateFilter('createdFrom', event.target.value)
+            }
+          />
+        </Field>
+        <Field>
+          <FieldLabel>{t('Created To')}</FieldLabel>
+          <Input
+            value={filters.createdTo}
+            type='datetime-local'
+            onChange={(event) => updateFilter('createdTo', event.target.value)}
+          />
+        </Field>
       </CardContent>
     </Card>
   )

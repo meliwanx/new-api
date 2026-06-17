@@ -124,7 +124,11 @@ export function SupplierCards() {
                   plansData?.supplier_level ?? user?.supplier_level ?? 0
                 }
                 maxPurchaseCount={plansData?.max_purchase_count ?? 1}
-                balanceQuota={user?.quota ?? 0}
+                balanceQuota={
+                  plansData?.supplier_card_quota ??
+                  user?.supplier_card_quota ??
+                  0
+                }
                 loading={userQuery.isLoading || plansQuery.isLoading}
                 purchasing={purchaseMutation.isPending}
                 onPurchase={(planId, count) =>
@@ -164,7 +168,9 @@ export function SupplierCards() {
                 </EmptyMedia>
                 <EmptyTitle>{t('Loading supplier cards')}</EmptyTitle>
                 <EmptyDescription>
-                  {t('Checking your supplier level and available balance.')}
+                  {t(
+                    'Checking your supplier level and card purchase balance.'
+                  )}
                 </EmptyDescription>
               </EmptyHeader>
             </Empty>

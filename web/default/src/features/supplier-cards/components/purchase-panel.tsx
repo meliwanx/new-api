@@ -16,7 +16,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { ShoppingCart, Minus, Plus } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { formatCurrencyUSD, formatQuota } from '@/lib/format'
@@ -65,14 +65,8 @@ export function PurchasePanel({
   const [selectedPlanId, setSelectedPlanId] = useState<number | null>(null)
   const [count, setCount] = useState(1)
 
-  useEffect(() => {
-    if (selectedPlanId == null && plans.length > 0) {
-      setSelectedPlanId(plans[0].id)
-    }
-  }, [plans, selectedPlanId])
-
   const selectedPlan = useMemo(
-    () => plans.find((plan) => plan.id === selectedPlanId) ?? null,
+    () => plans.find((plan) => plan.id === selectedPlanId) ?? plans[0] ?? null,
     [plans, selectedPlanId]
   )
   const safeCount = Math.min(Math.max(count, 1), maxPurchaseCount || 1)
@@ -87,14 +81,17 @@ export function PurchasePanel({
       <CardHeader className='border-b py-4'>
         <CardTitle>{t('Buy Recharge Cards')}</CardTitle>
         <CardDescription>
-          {t('Supplier level {{level}} pricing, paid from your balance.', {
-            level: supplierLevel,
-          })}
+          {t(
+            'Supplier level {{level}} pricing, paid from your card purchase balance.',
+            {
+              level: supplierLevel,
+            }
+          )}
         </CardDescription>
         <CardAction>
           <div className='text-right'>
             <div className='text-muted-foreground text-xs'>
-              {t('Available Balance')}
+              {t('Card Purchase Balance')}
             </div>
             <div className='font-mono text-sm font-semibold'>
               {formatQuota(balanceQuota)}
@@ -117,7 +114,7 @@ export function PurchasePanel({
         ) : (
           <div className='grid gap-3 sm:grid-cols-2 lg:grid-cols-4'>
             {plans.map((plan) => {
-              const selected = plan.id === selectedPlanId
+              const selected = plan.id === selectedPlan?.id
               return (
                 <button
                   key={plan.id}

@@ -45,6 +45,7 @@ export const userSchema = z.object({
   request_count: z.number(),
   group: z.string(),
   supplier_level: z.number().optional().default(0),
+  supplier_card_quota: z.number().optional().default(0),
   aff_code: z.string().optional(),
   aff_count: z.number().optional(),
   aff_quota: z.number().optional(),

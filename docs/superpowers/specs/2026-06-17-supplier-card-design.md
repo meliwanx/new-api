@@ -2,15 +2,17 @@
 
 ## Goal
 
-Build an independent supplier recharge card module for New API. Admins can assign supplier levels to users, configure card denominations and per-level prices, suppliers can buy cards with account balance, and recipients can open a public card link before logging in and redeem after login.
+Build an independent supplier recharge card module for New API. Admins can assign supplier levels to users, configure card denominations and per-level prices, fund a dedicated supplier card purchase balance, suppliers can buy cards only with that dedicated balance, and recipients can open a public card link before logging in and redeem after login.
 
 ## Confirmed Product Decisions
 
 - Supplier level is stored on the user account.
 - `supplier_level = 0` means a normal user and cannot buy supplier cards.
 - `supplier_level = 1..10` means a supplier and can buy supplier cards.
-- Suppliers pay with existing account balance only in the first release.
+- Suppliers pay with a dedicated `supplier_card_quota` balance. They cannot buy supplier cards with normal account balance.
+- Admins are the only actors that can fund or correct `supplier_card_quota` through the supplier card management page.
 - Card denominations use the normal top-up display unit. Redeeming a card adds `amount * QuotaPerUnit` internal quota.
+- Redeeming a supplier card adds normal user `quota`, not `supplier_card_quota`.
 - Suppliers may redeem their own purchased cards.
 - Batch purchase is supported, with an admin-configured maximum quantity per purchase.
 - Public share pages do not show the full redemption code. They show card information and a partial code preview only.
@@ -29,12 +31,14 @@ The backend follows the existing Router -> Controller -> Model/Service pattern. 
 Add:
 
 - `SupplierLevel int json:"supplier_level" gorm:"type:int;default:0;column:supplier_level;index"`
+- `SupplierCardQuota int json:"supplier_card_quota" gorm:"type:int;default:0;column:supplier_card_quota"`
 
 Validation:
 
 - Admin user create/update accepts `0..10`.
 - Values outside the range are rejected.
 - Existing users default to `0` through AutoMigrate.
+- `SupplierCardQuota` is not changed by online top-up, redemption, consumption, refund, or normal balance adjustment flows.
 
 ### SupplierCardPlan
 
@@ -65,7 +69,7 @@ Default seed behavior:
 
 ### SupplierCardOrder
 
-Purpose: one successful supplier balance purchase operation.
+Purpose: one successful supplier dedicated-balance purchase operation.
 
 Fields:
 
@@ -79,14 +83,38 @@ Fields:
 - `Count int`
 - `UnitPrice float64`: display-unit price snapshot for one card.
 - `TotalPrice float64`: display-unit total price snapshot.
-- `TotalDebitQuota int`: internal quota deducted from supplier balance.
+- `TotalDebitQuota int`: internal quota deducted from supplier dedicated card purchase balance.
 - `CreatedTime int64 index`
 
 Accounting:
 
 - Prices are configured and shown in the same display unit as card denominations.
-- Balance deduction uses `round(total_price * QuotaPerUnit)` internal quota.
-- Purchase is rejected if the supplier's current `quota` is lower than `TotalDebitQuota`.
+- Balance deduction uses `round(total_price * QuotaPerUnit)` internal quota from `users.supplier_card_quota`.
+- Purchase is rejected if the supplier's current `supplier_card_quota` is lower than `TotalDebitQuota`.
+- Purchase does not change `users.quota`.
+
+### SupplierCardQuotaLog
+
+Purpose: audit all movements of the dedicated supplier card purchase balance.
+
+Fields:
+
+- `Id int`
+- `SupplierUserId int index`
+- `OperatorUserId int index`: admin user for manual adjustments, `0` for automatic purchase deductions.
+- `Action string`: `admin_add`, `admin_subtract`, `admin_override`, or `purchase`.
+- `QuotaDelta int`: signed internal quota change.
+- `QuotaBefore int`
+- `QuotaAfter int`
+- `OrderId int index`
+- `OrderNo string index`
+- `Memo string`
+- `CreatedTime int64 index`
+
+Rules:
+
+- Admin adjustments and supplier purchases must create a log row in the same transaction as the balance change.
+- The log table is the audit source for supplier card purchase balance funding and deductions.
 
 ### SupplierCard
 
@@ -127,7 +155,7 @@ Security:
 `GET /api/supplier-cards/plans`
 
 - Auth: user.
-- Returns enabled plans with current user's level-specific price.
+- Returns enabled plans with current user's level-specific price and current `supplier_card_quota`.
 - Normal users with level `0` receive a business error.
 
 `POST /api/supplier-cards/purchase`
@@ -135,7 +163,7 @@ Security:
 - Auth: user plus critical rate limit.
 - Body: `{"plan_id": 1, "count": 10}`.
 - Validates supplier level `1..10`, enabled plan, price for level, positive count, and count <= configured max.
-- Transaction locks supplier user row, creates a `SupplierCardOrder`, deducts `round(total_price * QuotaPerUnit)` from the supplier balance, then creates cards linked to the order.
+- Transaction locks supplier user row, creates a `SupplierCardOrder`, deducts `round(total_price * QuotaPerUnit)` from `supplier_card_quota`, records a `SupplierCardQuotaLog`, then creates cards linked to the order.
 - Returns the order plus created cards with share links, full code, status, amount, price, and previews.
 
 `GET /api/supplier-cards/self`
@@ -192,6 +220,21 @@ Security:
 - Same filters where applicable.
 - Returns total sales amount from orders, sold card count, redeemed count, unused count, disabled count, grouped totals by amount and supplier level.
 
+`POST /api/supplier-cards/admin/balance`
+
+- Auth: admin.
+- Body: `{"user_id": 1, "mode": "add|subtract|override", "value": 100000, "memo": "manual funding"}`.
+- `value` is internal quota units.
+- Requires the target user to be a supplier (`supplier_level > 0`).
+- Changes `supplier_card_quota` in a transaction and records `SupplierCardQuotaLog`.
+- Subtract cannot make the dedicated balance negative.
+
+`GET /api/supplier-cards/admin/balance-logs`
+
+- Auth: admin.
+- Query filters: supplier user id, operator user id, action, keyword, created time range, pagination.
+- Returns paginated `SupplierCardQuotaLog` records for audit.
+
 `GET /api/supplier-cards/admin/settings`
 
 - Auth: admin.
@@ -223,7 +266,7 @@ Route: `/_authenticated/supplier-cards/`
 
 Sections:
 
-- Header with supplier level, current balance, and purchase limit.
+- Header with supplier level, current dedicated card purchase balance, and purchase limit.
 - Purchasable card grid. Each card shows denomination, current level price, effective discount, and enabled state.
 - Quantity stepper/input with max limit.
 - Purchase action with confirmation dialog showing total cost and resulting card count.
@@ -253,6 +296,7 @@ Route: `/_authenticated/supplier-card-management/`
 Tabs:
 
 - Plans: table editor for denomination, enabled state, sort order, and level `1..10` prices.
+- Purchase Balances: admin form to add, subtract, or override a supplier's dedicated card purchase balance, plus searchable balance movement logs.
 - Orders: searchable/filterable purchase order list for sales reconciliation.
 - Cards: searchable/filterable card list using the existing data-table patterns.
 - Stats: compact cards for totals and grouped tables by amount and level.
@@ -281,7 +325,7 @@ Purchase errors:
 - Disabled or missing plan.
 - Missing price for supplier level.
 - Count outside allowed range.
-- Insufficient balance.
+- Insufficient supplier card balance.
 
 Redeem errors:
 
@@ -298,8 +342,8 @@ Backend tests:
 
 - Supplier level validation rejects values outside `0..10`.
 - Purchase rejects level `0`.
-- Purchase deducts balance and creates the requested card count.
-- Purchase rejects insufficient balance.
+- Purchase deducts dedicated card purchase balance and creates the requested card count.
+- Purchase rejects insufficient supplier card balance.
 - Purchase snapshots level, amount, quota, and price.
 - Redeem adds quota to current user and marks card redeemed.
 - Redeem is idempotency-safe under repeated attempts by checking status in a transaction.
