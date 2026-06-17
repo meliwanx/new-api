@@ -29,9 +29,17 @@ command -v bun >/dev/null     || { echo "缺少 bun，请先安装"; exit 1; }
 
 SSH_OPTS=(-o StrictHostKeyChecking=no -o ConnectTimeout=20)
 sshm() { sshpass -p "$SSHPASS_MASTER" ssh "${SSH_OPTS[@]}" "root@$MASTER" "$@"; }
-scpm() { sshpass -p "$SSHPASS_MASTER" scp "${SSH_OPTS[@]}" "$@"; }
 sshn() { sshpass -p "$SSHPASS_NODE" ssh "${SSH_OPTS[@]}" "root@$NODE" "$@"; }
-scpn() { sshpass -p "$SSHPASS_NODE" scp "${SSH_OPTS[@]}" "$@"; }
+scp_with_fallback() {
+  local pass="$1"
+  shift
+  if ! sshpass -p "$pass" scp "${SSH_OPTS[@]}" "$@"; then
+    echo "    scp/SFTP 不可用，回退 legacy scp (-O)"
+    sshpass -p "$pass" scp -O "${SSH_OPTS[@]}" "$@"
+  fi
+}
+scpm() { scp_with_fallback "$SSHPASS_MASTER" "$@"; }
+scpn() { scp_with_fallback "$SSHPASS_NODE" "$@"; }
 
 echo "==> [1/6] 本地构建前端（web/default）"
 ( cd web/default && bun run build )
