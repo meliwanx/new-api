@@ -27,51 +27,21 @@ type FundingSource interface {
 // ---------------------------------------------------------------------------
 
 type WalletFunding struct {
-	userId             int
-	consumed           int // 实际预扣的用户额度
-	restrictedConsumed int // 预扣额度中来自仅消费额度的部分
+	userId   int
+	consumed int // 实际预扣的用户额度
 }
 
 func (w *WalletFunding) Source() string { return BillingSourceWallet }
 
-func (w *WalletFunding) consume(amount int) error {
+func (w *WalletFunding) PreConsume(amount int) error {
 	if amount <= 0 {
 		return nil
 	}
-	restrictedConsumed, err := model.DecreaseUserQuotaForConsumption(w.userId, amount, false)
-	if err != nil {
+	if err := model.DecreaseUserQuota(w.userId, amount, false); err != nil {
 		return err
 	}
-	w.consumed += amount
-	w.restrictedConsumed += restrictedConsumed
+	w.consumed = amount
 	return nil
-}
-
-func (w *WalletFunding) refund(amount int) error {
-	if amount <= 0 || w.consumed <= 0 {
-		return nil
-	}
-	if amount > w.consumed {
-		amount = w.consumed
-	}
-	remainingConsumed := w.consumed - amount
-	restrictedRefund := w.restrictedConsumed - remainingConsumed
-	if restrictedRefund < 0 {
-		restrictedRefund = 0
-	}
-	if restrictedRefund > amount {
-		restrictedRefund = amount
-	}
-	if err := model.IncreaseUserQuotaForConsumptionRefund(w.userId, amount, restrictedRefund, false); err != nil {
-		return err
-	}
-	w.consumed -= amount
-	w.restrictedConsumed -= restrictedRefund
-	return nil
-}
-
-func (w *WalletFunding) PreConsume(amount int) error {
-	return w.consume(amount)
 }
 
 func (w *WalletFunding) Settle(delta int) error {
@@ -79,17 +49,18 @@ func (w *WalletFunding) Settle(delta int) error {
 		return nil
 	}
 	if delta > 0 {
-		return w.consume(delta)
+		return model.DecreaseUserQuota(w.userId, delta, false)
 	}
-	return w.refund(-delta)
+	return model.IncreaseUserQuota(w.userId, -delta, false)
 }
 
 func (w *WalletFunding) Refund() error {
 	if w.consumed <= 0 {
 		return nil
 	}
-	// Wallet refunds are not idempotent; callers must ensure this is invoked once.
-	return w.refund(w.consumed)
+	// IncreaseUserQuota 是 quota += N 的非幂等操作，不能重试，否则会多退额度。
+	// 订阅的 RefundSubscriptionPreConsume 有 requestId 幂等保护所以可以重试。
+	return model.IncreaseUserQuota(w.userId, w.consumed, false)
 }
 
 // ---------------------------------------------------------------------------

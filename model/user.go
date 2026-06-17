@@ -38,9 +38,8 @@ type User struct {
 	VerificationCode string         `json:"verification_code" gorm:"-:all"`                         // this field is only for Email verification, don't save it to database!
 	AccessToken      *string        `json:"-" gorm:"type:char(32);column:access_token;uniqueIndex"` // this token is for system management
 	Quota            int            `json:"quota" gorm:"type:int;default:0"`
-	RestrictedQuota  int            `json:"restricted_quota" gorm:"type:int;default:0;column:restricted_quota"` // quota that can only be consumed, not used for supplier card purchase
-	UsedQuota        int            `json:"used_quota" gorm:"type:int;default:0;column:used_quota"`             // used quota
-	RequestCount     int            `json:"request_count" gorm:"type:int;default:0;"`                           // request number
+	UsedQuota        int            `json:"used_quota" gorm:"type:int;default:0;column:used_quota"` // used quota
+	RequestCount     int            `json:"request_count" gorm:"type:int;default:0;"`               // request number
 	Group            string         `json:"group" gorm:"type:varchar(64);default:'default'"`
 	SupplierLevel    int            `json:"supplier_level" gorm:"type:int;default:0;column:supplier_level;index"`
 	AffCode          string         `json:"aff_code" gorm:"type:varchar(32);column:aff_code;uniqueIndex"`
@@ -816,17 +815,6 @@ func GetUserUsedQuota(id int) (quota int, err error) {
 	return quota, err
 }
 
-func GetUserPurchasableQuota(user *User) int {
-	if user == nil {
-		return 0
-	}
-	purchasableQuota := user.Quota - user.RestrictedQuota
-	if purchasableQuota < 0 {
-		return 0
-	}
-	return purchasableQuota
-}
-
 func GetUserEmail(id int) (email string, err error) {
 	err = DB.Model(&User{}).Where("id = ?", id).Select("email").Find(&email).Error
 	return email, err
@@ -923,41 +911,6 @@ func increaseUserQuota(id int, quota int) (err error) {
 	return err
 }
 
-func IncreaseUserQuotaForConsumptionRefund(id int, quota int, restrictedQuota int, db bool) error {
-	if quota < 0 {
-		return errors.New("quota 不能为负数！")
-	}
-	if restrictedQuota < 0 {
-		return errors.New("restricted quota 不能为负数！")
-	}
-	if restrictedQuota > quota {
-		restrictedQuota = quota
-	}
-	if quota == 0 && restrictedQuota == 0 {
-		return nil
-	}
-	if err := increaseUserQuotaForConsumptionRefund(id, quota, restrictedQuota); err != nil {
-		return err
-	}
-	gopool.Go(func() {
-		err := cacheIncrUserQuota(id, int64(quota))
-		if err != nil {
-			common.SysLog("failed to increase user quota: " + err.Error())
-		}
-	})
-	return nil
-}
-
-func increaseUserQuotaForConsumptionRefund(id int, quota int, restrictedQuota int) error {
-	updates := map[string]interface{}{
-		"quota": gorm.Expr("quota + ?", quota),
-	}
-	if restrictedQuota > 0 {
-		updates["restricted_quota"] = gorm.Expr("restricted_quota + ?", restrictedQuota)
-	}
-	return DB.Model(&User{}).Where("id = ?", id).Updates(updates).Error
-}
-
 func DecreaseUserQuota(id int, quota int, db bool) (err error) {
 	if quota < 0 {
 		return errors.New("quota 不能为负数！")
@@ -981,53 +934,6 @@ func decreaseUserQuota(id int, quota int) (err error) {
 		return err
 	}
 	return err
-}
-
-func DecreaseUserQuotaForConsumption(id int, quota int, db bool) (restrictedQuotaUsed int, err error) {
-	if quota < 0 {
-		return 0, errors.New("quota 不能为负数！")
-	}
-	if quota == 0 {
-		return 0, nil
-	}
-	restrictedQuotaUsed, err = decreaseUserQuotaForConsumption(id, quota)
-	if err != nil {
-		return 0, err
-	}
-	gopool.Go(func() {
-		err := cacheDecrUserQuota(id, int64(quota))
-		if err != nil {
-			common.SysLog("failed to decrease user quota: " + err.Error())
-		}
-	})
-	return restrictedQuotaUsed, nil
-}
-
-func decreaseUserQuotaForConsumption(id int, quota int) (restrictedQuotaUsed int, err error) {
-	err = DB.Transaction(func(tx *gorm.DB) error {
-		user := &User{}
-		if err := tx.Set("gorm:query_option", "FOR UPDATE").Select("id", "quota", "restricted_quota").First(user, "id = ?", id).Error; err != nil {
-			return err
-		}
-		if user.Quota < quota {
-			return errors.New("user quota is not enough")
-		}
-		restrictedQuotaUsed = user.RestrictedQuota
-		if restrictedQuotaUsed > quota {
-			restrictedQuotaUsed = quota
-		}
-		if restrictedQuotaUsed < 0 {
-			restrictedQuotaUsed = 0
-		}
-		updates := map[string]interface{}{
-			"quota": gorm.Expr("quota - ?", quota),
-		}
-		if restrictedQuotaUsed > 0 {
-			updates["restricted_quota"] = gorm.Expr("restricted_quota - ?", restrictedQuotaUsed)
-		}
-		return tx.Model(&User{}).Where("id = ?", id).Updates(updates).Error
-	})
-	return restrictedQuotaUsed, err
 }
 
 func DeltaUpdateUserQuota(id int, delta int) (err error) {
