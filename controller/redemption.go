@@ -1,8 +1,12 @@
 package controller
 
 import (
+	"bytes"
+	"encoding/csv"
+	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"unicode/utf8"
 
 	"github.com/QuantumNous/new-api/common"
@@ -16,7 +20,12 @@ import (
 
 func GetAllRedemptions(c *gin.Context) {
 	pageInfo := common.GetPageQuery(c)
-	redemptions, total, err := model.GetAllRedemptions(pageInfo.GetStartIdx(), pageInfo.GetPageSize())
+	query, err := buildRedemptionListQuery(c, pageInfo)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	redemptions, total, err := model.ListRedemptions(query)
 	if err != nil {
 		common.ApiError(c, err)
 		return
@@ -28,9 +37,13 @@ func GetAllRedemptions(c *gin.Context) {
 }
 
 func SearchRedemptions(c *gin.Context) {
-	keyword := c.Query("keyword")
 	pageInfo := common.GetPageQuery(c)
-	redemptions, total, err := model.SearchRedemptions(keyword, pageInfo.GetStartIdx(), pageInfo.GetPageSize())
+	query, err := buildRedemptionListQuery(c, pageInfo)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	redemptions, total, err := model.ListRedemptions(query)
 	if err != nil {
 		common.ApiError(c, err)
 		return
@@ -39,6 +52,53 @@ func SearchRedemptions(c *gin.Context) {
 	pageInfo.SetItems(redemptions)
 	common.ApiSuccess(c, pageInfo)
 	return
+}
+
+func ExportRedemptions(c *gin.Context) {
+	format := strings.ToLower(strings.TrimSpace(c.DefaultQuery("format", "csv")))
+	if format != "csv" && format != "txt" {
+		common.ApiErrorMsg(c, "unsupported export format")
+		return
+	}
+
+	query, err := buildRedemptionListQuery(c, nil)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+
+	redemptions, err := model.ExportRedemptions(query)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+
+	var buf bytes.Buffer
+	filename := "redemption-codes." + format
+	contentType := "text/plain; charset=utf-8"
+
+	if format == "csv" {
+		contentType = "text/csv; charset=utf-8"
+		writer := csv.NewWriter(&buf)
+		for _, redemption := range redemptions {
+			if err := writer.Write([]string{redemption.Key, logger.FormatQuota(redemption.Quota)}); err != nil {
+				common.ApiError(c, err)
+				return
+			}
+		}
+		writer.Flush()
+		if err := writer.Error(); err != nil {
+			common.ApiError(c, err)
+			return
+		}
+	} else {
+		for _, redemption := range redemptions {
+			_, _ = fmt.Fprintf(&buf, "%s/%s\n", redemption.Key, logger.FormatQuota(redemption.Quota))
+		}
+	}
+
+	c.Header("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, filename))
+	c.Data(http.StatusOK, contentType, buf.Bytes())
 }
 
 func GetRedemption(c *gin.Context) {
@@ -196,4 +256,25 @@ func validateExpiredTime(c *gin.Context, expired int64) (bool, string) {
 		return false, i18n.T(c, i18n.MsgRedemptionExpireTimeInvalid)
 	}
 	return true, ""
+}
+
+func buildRedemptionListQuery(c *gin.Context, pageInfo *common.PageInfo) (model.RedemptionListQuery, error) {
+	query := model.RedemptionListQuery{
+		Keyword: strings.TrimSpace(c.Query("keyword")),
+		Status:  strings.TrimSpace(c.Query("status")),
+	}
+	if pageInfo != nil {
+		query.StartIdx = pageInfo.GetStartIdx()
+		query.Num = pageInfo.GetPageSize()
+	}
+
+	if rawQuota := strings.TrimSpace(c.Query("quota")); rawQuota != "" {
+		quota, err := strconv.Atoi(rawQuota)
+		if err != nil || quota < 0 {
+			return query, fmt.Errorf("invalid quota")
+		}
+		query.Quota = &quota
+	}
+
+	return query, nil
 }

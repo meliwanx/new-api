@@ -47,7 +47,12 @@ export interface ApiResponse<T = unknown> {
   data?: T
 }
 
-export interface GetRedemptionsParams {
+export interface RedemptionListFilters {
+  status?: string
+  quota?: number
+}
+
+export interface GetRedemptionsParams extends RedemptionListFilters {
   p?: number
   page_size?: number
 }
@@ -63,10 +68,15 @@ export interface GetRedemptionsResponse {
   }
 }
 
-export interface SearchRedemptionsParams {
+export interface SearchRedemptionsParams extends GetRedemptionsParams {
   keyword?: string
-  p?: number
-  page_size?: number
+}
+
+export type RedemptionExportFormat = 'csv' | 'txt'
+
+export interface ExportRedemptionsParams extends RedemptionListFilters {
+  keyword?: string
+  format: RedemptionExportFormat
 }
 
 export interface RedemptionFormData {

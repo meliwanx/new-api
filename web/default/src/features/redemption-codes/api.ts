@@ -20,6 +20,7 @@ import { api } from '@/lib/api'
 import type {
   Redemption,
   ApiResponse,
+  ExportRedemptionsParams,
   GetRedemptionsParams,
   GetRedemptionsResponse,
   SearchRedemptionsParams,
@@ -30,12 +31,33 @@ import type {
 // Redemption Code Management
 // ============================================================================
 
+function buildRedemptionQueryParams(
+  params: GetRedemptionsParams & { keyword?: string; format?: string } = {}
+): string {
+  const searchParams = new URLSearchParams()
+
+  if (params.p != null) searchParams.set('p', String(params.p))
+  if (params.page_size != null) {
+    searchParams.set('page_size', String(params.page_size))
+  }
+  if (params.keyword?.trim()) searchParams.set('keyword', params.keyword.trim())
+  if (params.status) searchParams.set('status', params.status)
+  if (params.quota != null) searchParams.set('quota', String(params.quota))
+  if (params.format) searchParams.set('format', params.format)
+
+  return searchParams.toString()
+}
+
 // Get paginated redemption codes list
 export async function getRedemptions(
   params: GetRedemptionsParams = {}
 ): Promise<GetRedemptionsResponse> {
-  const { p = 1, page_size = 10 } = params
-  const res = await api.get(`/api/redemption/?p=${p}&page_size=${page_size}`)
+  const query = buildRedemptionQueryParams({
+    ...params,
+    p: params.p ?? 1,
+    page_size: params.page_size ?? 10,
+  })
+  const res = await api.get(`/api/redemption/?${query}`)
   return res.data
 }
 
@@ -43,10 +65,25 @@ export async function getRedemptions(
 export async function searchRedemptions(
   params: SearchRedemptionsParams
 ): Promise<GetRedemptionsResponse> {
-  const { keyword = '', p = 1, page_size = 10 } = params
-  const res = await api.get(
-    `/api/redemption/search?keyword=${keyword}&p=${p}&page_size=${page_size}`
-  )
+  const query = buildRedemptionQueryParams({
+    ...params,
+    p: params.p ?? 1,
+    page_size: params.page_size ?? 10,
+  })
+  const res = await api.get(`/api/redemption/search?${query}`)
+  return res.data
+}
+
+// Export redemption codes with current filters
+export async function exportRedemptions(
+  params: ExportRedemptionsParams
+): Promise<Blob> {
+  const query = buildRedemptionQueryParams(params)
+  const res = await api.get(`/api/redemption/export?${query}`, {
+    responseType: 'blob',
+    skipBusinessError: true,
+    disableDuplicate: true,
+  })
   return res.data
 }
 

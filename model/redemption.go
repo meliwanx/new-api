@@ -4,12 +4,15 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/logger"
 
 	"gorm.io/gorm"
 )
+
+const RedemptionFilterStatusExpired = "expired"
 
 type Redemption struct {
 	Id           int            `json:"id"`
@@ -26,8 +29,30 @@ type Redemption struct {
 	ExpiredTime  int64          `json:"expired_time" gorm:"bigint"` // 过期时间，0 表示不过期
 }
 
+type RedemptionListQuery struct {
+	Keyword  string
+	Status   string
+	Quota    *int
+	StartIdx int
+	Num      int
+}
+
 func GetAllRedemptions(startIdx int, num int) (redemptions []*Redemption, total int64, err error) {
-	// 开始事务
+	return ListRedemptions(RedemptionListQuery{
+		StartIdx: startIdx,
+		Num:      num,
+	})
+}
+
+func SearchRedemptions(keyword string, startIdx int, num int) (redemptions []*Redemption, total int64, err error) {
+	return ListRedemptions(RedemptionListQuery{
+		Keyword:  keyword,
+		StartIdx: startIdx,
+		Num:      num,
+	})
+}
+
+func ListRedemptions(filters RedemptionListQuery) (redemptions []*Redemption, total int64, err error) {
 	tx := DB.Begin()
 	if tx.Error != nil {
 		return nil, 0, tx.Error
@@ -38,21 +63,24 @@ func GetAllRedemptions(startIdx int, num int) (redemptions []*Redemption, total 
 		}
 	}()
 
-	// 获取总数
-	err = tx.Model(&Redemption{}).Count(&total).Error
+	query := applyRedemptionListFilters(tx.Model(&Redemption{}), filters)
+
+	err = query.Count(&total).Error
 	if err != nil {
 		tx.Rollback()
 		return nil, 0, err
 	}
 
-	// 获取分页数据
-	err = tx.Order("id desc").Limit(num).Offset(startIdx).Find(&redemptions).Error
+	if filters.Num > 0 {
+		query = query.Limit(filters.Num).Offset(filters.StartIdx)
+	}
+
+	err = query.Order("id desc").Find(&redemptions).Error
 	if err != nil {
 		tx.Rollback()
 		return nil, 0, err
 	}
 
-	// 提交事务
 	if err = tx.Commit().Error; err != nil {
 		return nil, 0, err
 	}
@@ -60,46 +88,43 @@ func GetAllRedemptions(startIdx int, num int) (redemptions []*Redemption, total 
 	return redemptions, total, nil
 }
 
-func SearchRedemptions(keyword string, startIdx int, num int) (redemptions []*Redemption, total int64, err error) {
-	tx := DB.Begin()
-	if tx.Error != nil {
-		return nil, 0, tx.Error
-	}
-	defer func() {
-		if r := recover(); r != nil {
-			tx.Rollback()
+func ExportRedemptions(filters RedemptionListQuery) (redemptions []*Redemption, err error) {
+	query := applyRedemptionListFilters(DB.Model(&Redemption{}), filters)
+	err = query.Order("id desc").Find(&redemptions).Error
+	return redemptions, err
+}
+
+func applyRedemptionListFilters(query *gorm.DB, filters RedemptionListQuery) *gorm.DB {
+	keyword := strings.TrimSpace(filters.Keyword)
+	if keyword != "" {
+		keyCol := "`key`"
+		if common.UsingPostgreSQL {
+			keyCol = `"key"`
 		}
-	}()
-
-	// Build query based on keyword type
-	query := tx.Model(&Redemption{})
-
-	// Only try to convert to ID if the string represents a valid integer
-	if id, err := strconv.Atoi(keyword); err == nil {
-		query = query.Where("id = ? OR name LIKE ?", id, keyword+"%")
-	} else {
-		query = query.Where("name LIKE ?", keyword+"%")
+		if id, err := strconv.Atoi(keyword); err == nil {
+			query = query.Where("id = ? OR name LIKE ? OR "+keyCol+" LIKE ?", id, keyword+"%", keyword+"%")
+		} else {
+			query = query.Where("name LIKE ? OR "+keyCol+" LIKE ?", keyword+"%", keyword+"%")
+		}
 	}
 
-	// Get total count
-	err = query.Count(&total).Error
-	if err != nil {
-		tx.Rollback()
-		return nil, 0, err
+	statusFilter := strings.TrimSpace(filters.Status)
+	switch statusFilter {
+	case "":
+	case RedemptionFilterStatusExpired:
+		now := common.GetTimestamp()
+		query = query.Where("status = ? AND expired_time != 0 AND expired_time < ?", common.RedemptionCodeStatusEnabled, now)
+	default:
+		if status, err := strconv.Atoi(statusFilter); err == nil {
+			query = query.Where("status = ?", status)
+		}
 	}
 
-	// Get paginated data
-	err = query.Order("id desc").Limit(num).Offset(startIdx).Find(&redemptions).Error
-	if err != nil {
-		tx.Rollback()
-		return nil, 0, err
+	if filters.Quota != nil {
+		query = query.Where("quota = ?", *filters.Quota)
 	}
 
-	if err = tx.Commit().Error; err != nil {
-		return nil, 0, err
-	}
-
-	return redemptions, total, nil
+	return query
 }
 
 func GetRedemptionById(id int) (*Redemption, error) {
