@@ -24,6 +24,8 @@ import type {
   BatchSetTagParams,
   Channel,
   ChannelBalanceResponse,
+  ChannelExportFormat,
+  ChannelExportPayload,
   ChannelTestResponse,
   CopyChannelParams,
   CopyChannelResponse,
@@ -31,6 +33,7 @@ import type {
   GetChannelResponse,
   GetChannelsParams,
   GetChannelsResponse,
+  ImportChannelsResponse,
   MultiKeyManageParams,
   MultiKeyStatusResponse,
   SearchChannelsParams,
@@ -155,6 +158,38 @@ export async function batchSetChannelTag(
     '/api/channel/batch/tag',
     data,
     channelActionConfig()
+  )
+  return res.data
+}
+
+/**
+ * Export channel configurations.
+ * JSON is the importable format; CSV is intended for review and backup.
+ */
+export async function exportChannels(
+  format: ChannelExportFormat
+): Promise<Blob> {
+  const res = await api.get(
+    '/api/channel/export',
+    channelActionConfig({
+      params: { format },
+      responseType: 'blob',
+      disableDuplicate: true,
+    })
+  )
+  return res.data as Blob
+}
+
+/**
+ * Import selected channel configurations from an exported JSON payload.
+ */
+export async function importChannels(
+  data: ChannelExportPayload
+): Promise<ImportChannelsResponse> {
+  const res = await api.post(
+    '/api/channel/import',
+    data,
+    channelActionConfig({ disableDuplicate: true })
   )
   return res.data
 }

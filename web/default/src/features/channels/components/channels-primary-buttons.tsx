@@ -29,8 +29,12 @@ import {
   SortAsc,
   RefreshCw,
   ArrowUpFromLine,
+  FileJson,
+  FileSpreadsheet,
+  Upload,
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -50,7 +54,9 @@ import {
   handleTestAllChannels,
   handleUpdateAllBalances,
 } from '../lib'
+import { exportChannels } from '../api'
 import { useChannels } from './channels-provider'
+import type { ChannelExportFormat } from '../types'
 
 export function ChannelsPrimaryButtons() {
   const { t } = useTranslation()
@@ -65,6 +71,8 @@ export function ChannelsPrimaryButtons() {
   } = useChannels()
   const queryClient = useQueryClient()
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [exportingFormat, setExportingFormat] =
+    useState<ChannelExportFormat | null>(null)
 
   const handleTagModeToggle = (checked: boolean) => {
     localStorage.setItem('enable-tag-mode', String(checked))
@@ -74,6 +82,22 @@ export function ChannelsPrimaryButtons() {
   const handleIdSortToggle = (checked: boolean) => {
     localStorage.setItem('channels-id-sort', String(checked))
     setIdSort(checked)
+  }
+
+  const handleExport = async (format: ChannelExportFormat) => {
+    setExportingFormat(format)
+    try {
+      const responseBlob = await exportChannels(format)
+      const blob = await normalizeExportBlob(responseBlob, format)
+      downloadBlob(blob, `channels-${formatTimestampForFilename()}.${format}`)
+      toast.success(t('Channel export started'))
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : t('Failed to export channels')
+      )
+    } finally {
+      setExportingFormat(null)
+    }
   }
 
   return (
@@ -169,6 +193,35 @@ export function ChannelsPrimaryButtons() {
             <DropdownMenuSeparator />
 
             <DropdownMenuItem
+              onClick={() => handleExport('json')}
+              disabled={exportingFormat !== null}
+            >
+              {t('Export Channels JSON')}
+              <DropdownMenuShortcut>
+                <FileJson className='h-4 w-4' />
+              </DropdownMenuShortcut>
+            </DropdownMenuItem>
+
+            <DropdownMenuItem
+              onClick={() => handleExport('csv')}
+              disabled={exportingFormat !== null}
+            >
+              {t('Export Channels CSV')}
+              <DropdownMenuShortcut>
+                <FileSpreadsheet className='h-4 w-4' />
+              </DropdownMenuShortcut>
+            </DropdownMenuItem>
+
+            <DropdownMenuItem onClick={() => setOpen('import-channels')}>
+              {t('Import Channels JSON')}
+              <DropdownMenuShortcut>
+                <Upload className='h-4 w-4' />
+              </DropdownMenuShortcut>
+            </DropdownMenuItem>
+
+            <DropdownMenuSeparator />
+
+            <DropdownMenuItem
               onClick={() => upstream.detectAllUpdates()}
               disabled={upstream.detectAllLoading}
             >
@@ -238,4 +291,49 @@ export function ChannelsPrimaryButtons() {
       />
     </>
   )
+}
+
+async function normalizeExportBlob(
+  blob: Blob,
+  format: ChannelExportFormat
+): Promise<Blob> {
+  if (format !== 'json' && !blob.type.includes('application/json')) {
+    return blob
+  }
+
+  const text = await blob.text()
+  const payload = JSON.parse(text) as { success?: boolean; message?: string }
+  if (payload.success === false) {
+    throw new Error(payload.message || 'Failed to export channels')
+  }
+
+  if (format === 'json') {
+    return new Blob([text], { type: 'application/json;charset=utf-8' })
+  }
+  return new Blob([text], { type: blob.type })
+}
+
+function downloadBlob(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = filename
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  URL.revokeObjectURL(url)
+}
+
+function formatTimestampForFilename() {
+  const date = new Date()
+  const pad = (value: number) => String(value).padStart(2, '0')
+  return [
+    date.getFullYear(),
+    pad(date.getMonth() + 1),
+    pad(date.getDate()),
+    '-',
+    pad(date.getHours()),
+    pad(date.getMinutes()),
+    pad(date.getSeconds()),
+  ].join('')
 }

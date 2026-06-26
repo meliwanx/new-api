@@ -18,6 +18,7 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import { useChannels } from './channels-provider'
 import { BalanceQueryDialog } from './dialogs/balance-query-dialog'
+import { ChannelImportDialog } from './dialogs/channel-import-dialog'
 import { ChannelTestDialog } from './dialogs/channel-test-dialog'
 import { CopyChannelDialog } from './dialogs/copy-channel-dialog'
 import { EditTagDialog } from './dialogs/edit-tag-dialog'
@@ -43,6 +44,12 @@ export function ChannelsDialogs() {
       {/* Test Channel Dialog */}
       <ChannelTestDialog
         open={open === 'test-channel'}
+        onOpenChange={(v) => !v && setOpen(null)}
+      />
+
+      {/* Import Channels Dialog */}
+      <ChannelImportDialog
+        open={open === 'import-channels'}
         onOpenChange={(v) => !v && setOpen(null)}
       />
 

@@ -170,6 +170,45 @@ export interface CopyChannelResponse {
   }
 }
 
+export type ChannelExportFormat = 'json' | 'csv'
+
+export type ChannelExportItem = Partial<
+  Pick<
+    Channel,
+    | 'openai_organization'
+    | 'test_model'
+    | 'weight'
+    | 'base_url'
+    | 'other'
+    | 'model_mapping'
+    | 'status_code_mapping'
+    | 'priority'
+    | 'auto_ban'
+    | 'tag'
+    | 'setting'
+    | 'param_override'
+    | 'header_override'
+    | 'remark'
+    | 'channel_info'
+    | 'settings'
+  >
+> &
+  Pick<Channel, 'type' | 'key' | 'status' | 'name' | 'models' | 'group'>
+
+export interface ChannelExportPayload {
+  version?: number
+  exported_at?: number
+  channels: ChannelExportItem[]
+}
+
+export interface ImportChannelsResponse {
+  success: boolean
+  message?: string
+  data?: {
+    imported: number
+  }
+}
+
 // ============================================================================
 // Multi-Key Management Types
 // ============================================================================
