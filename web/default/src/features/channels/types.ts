@@ -261,6 +261,7 @@ export interface ImportChannelsResponse {
     imported_create_cache_ratios?: number
     imported_image_ratios?: number
     imported_audio_completion_ratios?: number
+    missing_pricing_models?: string[]
   }
 }
 

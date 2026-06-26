@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -13,6 +14,7 @@ import (
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/constant"
 	"github.com/QuantumNous/new-api/model"
+	relayhelper "github.com/QuantumNous/new-api/relay/helper"
 	"github.com/QuantumNous/new-api/service"
 	"github.com/QuantumNous/new-api/setting"
 	"github.com/QuantumNous/new-api/setting/ratio_setting"
@@ -440,14 +442,16 @@ func ImportChannels(c *gin.Context) {
 		common.ApiError(c, err)
 		return
 	}
+	missingPricingModels := collectMissingModelBillingConfigs(payload.Channels)
 	service.ResetProxyClientCache()
 	recordManageAudit(c, "channel.import", map[string]interface{}{
-		"count":         len(channels),
-		"groups":        relatedStats.ImportedGroups,
-		"model_prices":  relatedStats.ImportedModelPrices,
-		"model_ratios":  relatedStats.ImportedModelRatios,
-		"completion":    relatedStats.ImportedCompletionRatios,
-		"audio_pricing": relatedStats.ImportedAudioCompletionRatios,
+		"count":                  len(channels),
+		"groups":                 relatedStats.ImportedGroups,
+		"model_prices":           relatedStats.ImportedModelPrices,
+		"model_ratios":           relatedStats.ImportedModelRatios,
+		"completion":             relatedStats.ImportedCompletionRatios,
+		"audio_pricing":          relatedStats.ImportedAudioCompletionRatios,
+		"missing_pricing_models": missingPricingModels,
 	})
 	common.ApiSuccess(c, gin.H{
 		"imported":                         len(channels),
@@ -460,6 +464,7 @@ func ImportChannels(c *gin.Context) {
 		"imported_create_cache_ratios":     relatedStats.ImportedCreateCacheRatios,
 		"imported_image_ratios":            relatedStats.ImportedImageRatios,
 		"imported_audio_completion_ratios": relatedStats.ImportedAudioCompletionRatios,
+		"missing_pricing_models":           missingPricingModels,
 	})
 }
 
@@ -635,6 +640,18 @@ func collectExportModelSettingKeys(items []channelExportItem) map[string]struct{
 		}
 	}
 	return modelKeys
+}
+
+func collectMissingModelBillingConfigs(items []channelExportItem) []string {
+	modelNames := collectExportModelNames(items)
+	missing := make([]string, 0)
+	for modelName := range modelNames {
+		if !relayhelper.HasModelBillingConfig(modelName) {
+			missing = append(missing, modelName)
+		}
+	}
+	sort.Strings(missing)
+	return missing
 }
 
 func filterFloatSettingsByAllowed(incoming map[string]float64, allowed map[string]struct{}) map[string]float64 {

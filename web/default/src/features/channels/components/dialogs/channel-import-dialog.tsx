@@ -195,6 +195,14 @@ export function ChannelImportDialog({
           count: payload.channels.length,
         })
       )
+      if (!payload.model_pricing) {
+        toast.warning(
+          t(
+            'This JSON file does not contain model pricing. Model prices will not be imported.'
+          ),
+          { duration: 8000 }
+        )
+      }
     } catch (error) {
       reset()
       toast.error(
@@ -229,11 +237,26 @@ export function ChannelImportDialog({
         conflict_resolution: conflictResolution,
       })
       if (response.success) {
+        const missingPricingModels =
+          response.data?.missing_pricing_models?.filter(Boolean) ?? []
         toast.success(
           t('Imported {{count}} channels', {
             count: response.data?.imported ?? selectedChannels.length,
           })
         )
+        if (missingPricingModels.length > 0) {
+          toast.warning(
+            t('{{count}} imported model(s) still have no pricing', {
+              count: missingPricingModels.length,
+            }),
+            {
+              description: t('Missing pricing models: {{models}}', {
+                models: formatModelList(missingPricingModels),
+              }),
+              duration: 10000,
+            }
+          )
+        }
         await queryClient.invalidateQueries({
           queryKey: channelsQueryKeys.all,
         })
@@ -762,6 +785,12 @@ function valuesEqual(a: ImportSettingValue, b: ImportSettingValue): boolean {
 
 function formatConflictValue(value: ImportSettingValue): string {
   return typeof value === 'number' ? String(value) : value
+}
+
+function formatModelList(models: string[]): string {
+  const visibleModels = models.slice(0, 8)
+  const suffix = models.length > visibleModels.length ? ` +${models.length - visibleModels.length}` : ''
+  return `${visibleModels.join(', ')}${suffix}`
 }
 
 function parseChannelExportPayload(text: string): ChannelExportPayload {

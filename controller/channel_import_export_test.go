@@ -476,3 +476,41 @@ func TestImportChannelsAppliesSelectedJsonConflictResolution(t *testing.T) {
 	modelRatio := ratio_setting.GetModelRatioCopy()
 	require.Equal(t, float64(9), modelRatio["claude-custom"])
 }
+
+func TestImportChannelsReportsMissingModelPricingForLegacyPayload(t *testing.T) {
+	setupChannelImportExportControllerTestDB(t)
+
+	body, err := common.Marshal(map[string]any{
+		"version": 1,
+		"channels": []map[string]any{
+			{
+				"type":   constant.ChannelTypeOpenAI,
+				"key":    "sk-imported",
+				"status": common.ChannelStatusEnabled,
+				"name":   "Imported unpriced OpenAI",
+				"models": "custom-unpriced-model",
+				"group":  "default",
+			},
+		},
+	})
+	require.NoError(t, err)
+
+	recorder := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(recorder)
+	ctx.Request = httptest.NewRequest(http.MethodPost, "/api/channel/import", bytes.NewReader(body))
+	ctx.Request.Header.Set("Content-Type", "application/json")
+
+	ImportChannels(ctx)
+
+	require.Equal(t, http.StatusOK, recorder.Code)
+	var response map[string]any
+	require.NoError(t, common.Unmarshal(recorder.Body.Bytes(), &response))
+	require.Equal(t, true, response["success"])
+	data, ok := response["data"].(map[string]any)
+	require.True(t, ok)
+	require.Equal(t, float64(0), data["imported_model_prices"])
+	require.Equal(t, float64(0), data["imported_model_ratios"])
+	missingModels, ok := data["missing_pricing_models"].([]any)
+	require.True(t, ok)
+	require.Equal(t, []any{"custom-unpriced-model"}, missingModels)
+}
