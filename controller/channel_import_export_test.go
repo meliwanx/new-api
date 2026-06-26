@@ -219,7 +219,7 @@ func TestExportChannelsWritesCsvWithConfigColumns(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, records, 2)
 	require.Equal(t, []string{"name", "type", "key", "base_url", "models", "group", "status", "priority", "weight", "tag", "remark"}, records[0])
-	require.Equal(t, []string{"Claude, backup", "14", "anthropic-key", baseURL, "claude-opus-4-8", "default", "2", "", "", "", ""}, records[1])
+	require.Equal(t, []string{"Claude, backup", "14", "anthropic-key", baseURL, "claude-opus-4-8", "default", "2", "0", "0", "", ""}, records[1])
 }
 
 func TestImportChannelsCreatesSelectedConfigsAndClearsRuntimeState(t *testing.T) {
