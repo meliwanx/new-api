@@ -33,6 +33,7 @@ import type {
   GetChannelResponse,
   GetChannelsParams,
   GetChannelsResponse,
+  GetChannelImportOptionsResponse,
   ImportChannelsResponse,
   MultiKeyManageParams,
   MultiKeyStatusResponse,
@@ -189,6 +190,17 @@ export async function importChannels(
   const res = await api.post(
     '/api/channel/import',
     data,
+    channelActionConfig({ disableDuplicate: true })
+  )
+  return res.data
+}
+
+/**
+ * Fetch current system options needed to resolve channel import conflicts.
+ */
+export async function getChannelImportOptions(): Promise<GetChannelImportOptionsResponse> {
+  const res = await api.get(
+    '/api/option/',
     channelActionConfig({ disableDuplicate: true })
   )
   return res.data

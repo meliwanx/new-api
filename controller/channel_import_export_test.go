@@ -316,33 +316,33 @@ func TestImportChannelsAddsMissingRelatedGroupsAndModelPricingOnly(t *testing.T)
 		},
 		"model_pricing": map[string]any{
 			"model_price": map[string]float64{
-				"gpt-custom": 0.5,
-				"new-model": 0.8,
+				"gpt-custom":   0.5,
+				"new-model":    0.8,
 				"not-selected": 7,
 			},
 			"model_ratio": map[string]float64{
 				"claude-custom": 0.7,
-				"ratio-new": 0.9,
-				"not-selected": 7,
+				"ratio-new":     0.9,
+				"not-selected":  7,
 			},
 			"completion_ratio": map[string]float64{
 				"claude-custom": 2,
-				"not-selected": 7,
+				"not-selected":  7,
 			},
 			"cache_ratio": map[string]float64{
-				"cache-model": 0.25,
+				"cache-model":  0.25,
 				"not-selected": 7,
 			},
 			"create_cache_ratio": map[string]float64{
 				"create-cache-model": 1.1,
-				"not-selected": 7,
+				"not-selected":       7,
 			},
 			"image_ratio": map[string]float64{
-				"gpt-image-1": 2,
+				"gpt-image-1":  2,
 				"not-selected": 7,
 			},
 			"audio_completion_ratio": map[string]float64{
-				"gpt-custom": 1.4,
+				"gpt-custom":   1.4,
 				"not-selected": 7,
 			},
 		},
@@ -401,4 +401,78 @@ func TestImportChannelsAddsMissingRelatedGroupsAndModelPricingOnly(t *testing.T)
 	audioCompletionRatio := ratio_setting.GetAudioCompletionRatioCopy()
 	require.Equal(t, float64(1.4), audioCompletionRatio["gpt-custom"])
 	require.NotContains(t, audioCompletionRatio, "not-selected")
+}
+
+func TestImportChannelsAppliesSelectedJsonConflictResolution(t *testing.T) {
+	setupChannelImportExportControllerTestDB(t)
+	require.NoError(t, model.UpdateOption("GroupRatio", `{"reseller":9}`))
+	require.NoError(t, model.UpdateOption("UserUsableGroups", `{"reseller":"Existing Reseller"}`))
+	require.NoError(t, model.UpdateOption("ModelPrice", `{"gpt-custom":9}`))
+	require.NoError(t, model.UpdateOption("ModelRatio", `{"claude-custom":9}`))
+
+	body, err := common.Marshal(map[string]any{
+		"version": 1,
+		"channels": []map[string]any{
+			{
+				"type":   constant.ChannelTypeOpenAI,
+				"key":    "sk-imported",
+				"status": common.ChannelStatusEnabled,
+				"name":   "Imported conflict OpenAI",
+				"models": "gpt-custom,claude-custom",
+				"group":  "reseller",
+			},
+		},
+		"groups": map[string]any{
+			"group_ratio": map[string]float64{
+				"reseller": 1.23,
+			},
+			"user_usable_groups": map[string]string{
+				"reseller": "Exported Reseller",
+			},
+		},
+		"model_pricing": map[string]any{
+			"model_price": map[string]float64{
+				"gpt-custom": 0.5,
+			},
+			"model_ratio": map[string]float64{
+				"claude-custom": 0.7,
+			},
+		},
+		"conflict_resolution": map[string]map[string]string{
+			"GroupRatio": map[string]string{
+				"reseller": "json",
+			},
+			"ModelPrice": map[string]string{
+				"gpt-custom": "json",
+			},
+		},
+	})
+	require.NoError(t, err)
+
+	recorder := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(recorder)
+	ctx.Request = httptest.NewRequest(http.MethodPost, "/api/channel/import", bytes.NewReader(body))
+	ctx.Request.Header.Set("Content-Type", "application/json")
+
+	ImportChannels(ctx)
+
+	require.Equal(t, http.StatusOK, recorder.Code)
+	var response map[string]any
+	require.NoError(t, common.Unmarshal(recorder.Body.Bytes(), &response))
+	require.Equal(t, true, response["success"])
+	data, ok := response["data"].(map[string]any)
+	require.True(t, ok)
+	require.Equal(t, float64(1), data["imported_groups"])
+	require.Equal(t, float64(0), data["imported_user_usable_groups"])
+	require.Equal(t, float64(1), data["imported_model_prices"])
+	require.Equal(t, float64(0), data["imported_model_ratios"])
+
+	groupRatio := ratio_setting.GetGroupRatioCopy()
+	require.Equal(t, float64(1.23), groupRatio["reseller"])
+	userUsableGroups := setting.GetUserUsableGroupsCopy()
+	require.Equal(t, "Existing Reseller", userUsableGroups["reseller"])
+	modelPrice := ratio_setting.GetModelPriceCopy()
+	require.Equal(t, float64(0.5), modelPrice["gpt-custom"])
+	modelRatio := ratio_setting.GetModelRatioCopy()
+	require.Equal(t, float64(9), modelRatio["claude-custom"])
 }

@@ -33,13 +33,17 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Dialog } from '@/components/dialog'
-import { importChannels } from '../../api'
+import { getChannelImportOptions, importChannels } from '../../api'
 import { channelsQueryKeys, getChannelTypeLabel } from '../../lib'
 import type {
   ChannelExportGroups,
   ChannelExportItem,
   ChannelExportModelPricing,
   ChannelExportPayload,
+  ChannelImportConflictChoice,
+  ChannelImportConflictResolution,
+  ChannelImportOption,
+  ChannelImportOptionKey,
 } from '../../types'
 
 type ChannelImportDialogProps = {
@@ -60,10 +64,15 @@ export function ChannelImportDialog({
   const [groups, setGroups] = useState<ChannelExportGroups | undefined>()
   const [modelPricing, setModelPricing] =
     useState<ChannelExportModelPricing | undefined>()
+  const [currentOptions, setCurrentOptions] = useState<ChannelImportOption[]>([])
+  const [conflictChoices, setConflictChoices] = useState<
+    Record<string, ChannelImportConflictChoice>
+  >({})
   const [channels, setChannels] = useState<ChannelExportItem[]>([])
   const [selectedIndexes, setSelectedIndexes] = useState<Set<number>>(
     () => new Set()
   )
+  const [isLoadingOptions, setIsLoadingOptions] = useState(false)
   const [isImporting, setIsImporting] = useState(false)
 
   const selectedCount = selectedIndexes.size
@@ -74,6 +83,20 @@ export function ChannelImportDialog({
     () => channels.filter((_, index) => selectedIndexes.has(index)),
     [channels, selectedIndexes]
   )
+  const currentSettings = useMemo(
+    () => buildCurrentImportSettings(currentOptions),
+    [currentOptions]
+  )
+  const conflictRows = useMemo(
+    () =>
+      buildImportConflictRows({
+        channels: selectedChannels,
+        groups,
+        modelPricing,
+        currentSettings,
+      }),
+    [selectedChannels, groups, modelPricing, currentSettings]
+  )
 
   const reset = () => {
     setFileName('')
@@ -81,8 +104,11 @@ export function ChannelImportDialog({
     setExportedAt(undefined)
     setGroups(undefined)
     setModelPricing(undefined)
+    setCurrentOptions([])
+    setConflictChoices({})
     setChannels([])
     setSelectedIndexes(new Set())
+    setIsLoadingOptions(false)
     setIsImporting(false)
   }
 
@@ -113,6 +139,23 @@ export function ChannelImportDialog({
     })
   }
 
+  const handleConflictChoiceChange = (
+    id: string,
+    choice: ChannelImportConflictChoice
+  ) => {
+    setConflictChoices((current) => ({ ...current, [id]: choice }))
+  }
+
+  const handleSetAllConflicts = (choice: ChannelImportConflictChoice) => {
+    setConflictChoices((current) => {
+      const next = { ...current }
+      for (const row of conflictRows) {
+        next[row.id] = choice
+      }
+      return next
+    })
+  }
+
   const handleFileChange = async (
     event: React.ChangeEvent<HTMLInputElement>
   ) => {
@@ -129,15 +172,39 @@ export function ChannelImportDialog({
       setGroups(payload.groups)
       setModelPricing(payload.model_pricing)
       setChannels(payload.channels)
+      setConflictChoices({})
       setSelectedIndexes(new Set(payload.channels.map((_, index) => index)))
+
+      if (payload.groups || payload.model_pricing) {
+        setIsLoadingOptions(true)
+        try {
+          const response = await getChannelImportOptions()
+          if (!response.success || !response.data) {
+            throw new Error('Failed to load current system configuration')
+          }
+          setCurrentOptions(response.data)
+        } finally {
+          setIsLoadingOptions(false)
+        }
+      } else {
+        setCurrentOptions([])
+      }
+
       toast.success(
         t('Loaded {{count}} channels from file', {
           count: payload.channels.length,
         })
       )
-    } catch {
+    } catch (error) {
       reset()
-      toast.error(t('Invalid channel export JSON'))
+      toast.error(
+        t(
+          error instanceof Error &&
+            error.message === 'Failed to load current system configuration'
+            ? 'Failed to load current system configuration'
+            : 'Invalid channel export JSON'
+        )
+      )
     }
   }
 
@@ -149,12 +216,17 @@ export function ChannelImportDialog({
 
     setIsImporting(true)
     try {
+      const conflictResolution = buildConflictResolution(
+        conflictRows,
+        conflictChoices
+      )
       const response = await importChannels({
         version,
         exported_at: exportedAt,
         channels: selectedChannels,
         groups,
         model_pricing: modelPricing,
+        conflict_resolution: conflictResolution,
       })
       if (response.success) {
         toast.success(
@@ -204,9 +276,11 @@ export function ChannelImportDialog({
           </Button>
           <Button
             onClick={handleImport}
-            disabled={selectedChannels.length === 0 || isImporting}
+            disabled={
+              selectedChannels.length === 0 || isImporting || isLoadingOptions
+            }
           >
-            {isImporting ? (
+            {isImporting || isLoadingOptions ? (
               <Loader2 className='mr-2 h-4 w-4 animate-spin' />
             ) : (
               <Upload className='mr-2 h-4 w-4' />
@@ -228,7 +302,7 @@ export function ChannelImportDialog({
         <AlertCircle className='h-4 w-4' />
         <AlertDescription>
           {t(
-            'Imported channels will be created as new channels. Existing channels will not be overwritten.'
+            'Imported channels will be created as new channels. Existing configuration conflicts keep the current system value unless you choose the JSON value.'
           )}
         </AlertDescription>
       </Alert>
@@ -311,10 +385,383 @@ export function ChannelImportDialog({
               </TableBody>
             </Table>
           </div>
+
+          {isLoadingOptions ? (
+            <div className='text-muted-foreground flex items-center gap-2 rounded-md border px-3 py-2 text-sm'>
+              <Loader2 className='h-4 w-4 animate-spin' />
+              {t('Loading current system configuration')}
+            </div>
+          ) : conflictRows.length > 0 ? (
+            <div className='rounded-md border'>
+              <div className='flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3'>
+                <div className='flex flex-col gap-1'>
+                  <p className='font-medium'>{t('Configuration conflicts')}</p>
+                  <p className='text-muted-foreground text-sm'>
+                    {t('{{count}} conflicting settings found', {
+                      count: conflictRows.length,
+                    })}
+                  </p>
+                </div>
+                <div className='flex flex-wrap gap-2'>
+                  <Button
+                    type='button'
+                    variant='outline'
+                    size='sm'
+                    onClick={() => handleSetAllConflicts('system')}
+                  >
+                    {t('Keep system for all')}
+                  </Button>
+                  <Button
+                    type='button'
+                    variant='outline'
+                    size='sm'
+                    onClick={() => handleSetAllConflicts('json')}
+                  >
+                    {t('Use JSON for all')}
+                  </Button>
+                </div>
+              </div>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>{t('Setting')}</TableHead>
+                    <TableHead>{t('Key')}</TableHead>
+                    <TableHead>{t('Current system')}</TableHead>
+                    <TableHead>{t('JSON file')}</TableHead>
+                    <TableHead>{t('Decision')}</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {conflictRows.map((row) => {
+                    const choice = conflictChoices[row.id] ?? 'system'
+                    return (
+                      <TableRow key={row.id}>
+                        <TableCell className='whitespace-nowrap'>
+                          {t(row.label)}
+                        </TableCell>
+                        <TableCell className='font-mono'>{row.itemKey}</TableCell>
+                        <TableCell className='max-w-44 truncate font-mono'>
+                          {formatConflictValue(row.systemValue)}
+                        </TableCell>
+                        <TableCell className='max-w-44 truncate font-mono'>
+                          {formatConflictValue(row.jsonValue)}
+                        </TableCell>
+                        <TableCell>
+                          <div className='flex flex-wrap gap-2'>
+                            <Button
+                              type='button'
+                              size='sm'
+                              variant={
+                                choice === 'system' ? 'default' : 'outline'
+                              }
+                              onClick={() =>
+                                handleConflictChoiceChange(row.id, 'system')
+                              }
+                            >
+                              {t('Keep System')}
+                            </Button>
+                            <Button
+                              type='button'
+                              size='sm'
+                              variant={choice === 'json' ? 'default' : 'outline'}
+                              onClick={() =>
+                                handleConflictChoiceChange(row.id, 'json')
+                              }
+                            >
+                              {t('Use JSON')}
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    )
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          ) : null}
         </div>
       )}
     </Dialog>
   )
+}
+
+type ImportSettingValue = number | string
+
+type ImportSettingsMap = Partial<
+  Record<ChannelImportOptionKey, Record<string, ImportSettingValue>>
+>
+
+type ImportConflictRow = {
+  id: string
+  optionKey: ChannelImportOptionKey
+  label: string
+  itemKey: string
+  systemValue: ImportSettingValue
+  jsonValue: ImportSettingValue
+}
+
+type ImportConfigSpec = {
+  optionKey: ChannelImportOptionKey
+  label: string
+  valueType: 'number' | 'string'
+  getIncoming: (payload: {
+    groups?: ChannelExportGroups
+    modelPricing?: ChannelExportModelPricing
+  }) => Record<string, ImportSettingValue> | undefined
+  scope: 'group' | 'model'
+}
+
+const IMPORT_CONFIG_SPECS: ImportConfigSpec[] = [
+  {
+    optionKey: 'GroupRatio',
+    label: 'Group ratio',
+    valueType: 'number',
+    getIncoming: ({ groups }) => groups?.group_ratio,
+    scope: 'group',
+  },
+  {
+    optionKey: 'UserUsableGroups',
+    label: 'Selectable groups',
+    valueType: 'string',
+    getIncoming: ({ groups }) => groups?.user_usable_groups,
+    scope: 'group',
+  },
+  {
+    optionKey: 'ModelPrice',
+    label: 'Model fixed price',
+    valueType: 'number',
+    getIncoming: ({ modelPricing }) => modelPricing?.model_price,
+    scope: 'model',
+  },
+  {
+    optionKey: 'ModelRatio',
+    label: 'Model ratio',
+    valueType: 'number',
+    getIncoming: ({ modelPricing }) => modelPricing?.model_ratio,
+    scope: 'model',
+  },
+  {
+    optionKey: 'CompletionRatio',
+    label: 'Completion ratio',
+    valueType: 'number',
+    getIncoming: ({ modelPricing }) => modelPricing?.completion_ratio,
+    scope: 'model',
+  },
+  {
+    optionKey: 'CacheRatio',
+    label: 'Cache ratio',
+    valueType: 'number',
+    getIncoming: ({ modelPricing }) => modelPricing?.cache_ratio,
+    scope: 'model',
+  },
+  {
+    optionKey: 'CreateCacheRatio',
+    label: 'Cache write ratio',
+    valueType: 'number',
+    getIncoming: ({ modelPricing }) => modelPricing?.create_cache_ratio,
+    scope: 'model',
+  },
+  {
+    optionKey: 'ImageRatio',
+    label: 'Image ratio',
+    valueType: 'number',
+    getIncoming: ({ modelPricing }) => modelPricing?.image_ratio,
+    scope: 'model',
+  },
+  {
+    optionKey: 'AudioCompletionRatio',
+    label: 'Audio completion ratio',
+    valueType: 'number',
+    getIncoming: ({ modelPricing }) => modelPricing?.audio_completion_ratio,
+    scope: 'model',
+  },
+]
+
+function buildCurrentImportSettings(
+  options: ChannelImportOption[]
+): ImportSettingsMap {
+  const optionMap = new Map(options.map((option) => [option.key, option.value]))
+  const settings: ImportSettingsMap = {}
+
+  for (const spec of IMPORT_CONFIG_SPECS) {
+    const rawValue = optionMap.get(spec.optionKey)
+    const parsed =
+      spec.valueType === 'number'
+        ? parseNumberMap(rawValue)
+        : parseStringMap(rawValue)
+    if (parsed) {
+      settings[spec.optionKey] = parsed
+    }
+  }
+
+  return settings
+}
+
+function buildImportConflictRows({
+  channels,
+  groups,
+  modelPricing,
+  currentSettings,
+}: {
+  channels: ChannelExportItem[]
+  groups?: ChannelExportGroups
+  modelPricing?: ChannelExportModelPricing
+  currentSettings: ImportSettingsMap
+}): ImportConflictRow[] {
+  if (!groups && !modelPricing) return []
+
+  const groupKeys = collectGroupKeys(channels)
+  const modelKeys = collectModelKeys(channels)
+  const rows: ImportConflictRow[] = []
+
+  for (const spec of IMPORT_CONFIG_SPECS) {
+    const incoming = spec.getIncoming({ groups, modelPricing })
+    const current = currentSettings[spec.optionKey]
+    if (!incoming || !current) continue
+
+    const allowedKeys = spec.scope === 'group' ? groupKeys : modelKeys
+    for (const [rawKey, jsonValue] of Object.entries(incoming)) {
+      const itemKey = rawKey.trim()
+      if (!itemKey || !allowedKeys.has(itemKey)) continue
+
+      const systemValue = current[itemKey]
+      if (systemValue === undefined || valuesEqual(systemValue, jsonValue)) {
+        continue
+      }
+      rows.push({
+        id: `${spec.optionKey}:${itemKey}`,
+        optionKey: spec.optionKey,
+        label: spec.label,
+        itemKey,
+        systemValue,
+        jsonValue,
+      })
+    }
+  }
+
+  return rows
+}
+
+function buildConflictResolution(
+  rows: ImportConflictRow[],
+  choices: Record<string, ChannelImportConflictChoice>
+): ChannelImportConflictResolution | undefined {
+  if (rows.length === 0) return undefined
+
+  const resolution: ChannelImportConflictResolution = {}
+  for (const row of rows) {
+    const choice = choices[row.id] ?? 'system'
+    if (!resolution[row.optionKey]) {
+      resolution[row.optionKey] = {}
+    }
+    resolution[row.optionKey]![row.itemKey] = choice
+  }
+  return resolution
+}
+
+function parseNumberMap(value: string | undefined): Record<string, number> | undefined {
+  const parsed = parseJsonRecord(value)
+  if (!parsed) return undefined
+
+  const result: Record<string, number> = {}
+  for (const [key, rawValue] of Object.entries(parsed)) {
+    const numberValue = Number(rawValue)
+    if (Number.isFinite(numberValue)) {
+      result[key] = numberValue
+    }
+  }
+  return result
+}
+
+function parseStringMap(value: string | undefined): Record<string, string> | undefined {
+  const parsed = parseJsonRecord(value)
+  if (!parsed) return undefined
+
+  const result: Record<string, string> = {}
+  for (const [key, rawValue] of Object.entries(parsed)) {
+    if (typeof rawValue === 'string') {
+      result[key] = rawValue
+    }
+  }
+  return result
+}
+
+function parseJsonRecord(value: string | undefined): Record<string, unknown> | undefined {
+  if (!value) return undefined
+  try {
+    const parsed = JSON.parse(value) as unknown
+    return isRecord(parsed) ? parsed : undefined
+  } catch {
+    return undefined
+  }
+}
+
+function collectGroupKeys(channels: ChannelExportItem[]): Set<string> {
+  const keys = new Set<string>()
+  for (const channel of channels) {
+    for (const group of splitCommaFields(channel.group)) {
+      keys.add(group)
+    }
+  }
+  return keys
+}
+
+function collectModelKeys(channels: ChannelExportItem[]): Set<string> {
+  const keys = new Set<string>()
+  for (const channel of channels) {
+    for (const model of splitCommaFields(channel.models)) {
+      keys.add(model)
+      keys.add(formatMatchingModelName(model))
+    }
+    if (channel.test_model) {
+      const testModel = channel.test_model.trim()
+      if (testModel) {
+        keys.add(testModel)
+        keys.add(formatMatchingModelName(testModel))
+      }
+    }
+  }
+  return keys
+}
+
+function formatMatchingModelName(name: string): string {
+  if (
+    name.startsWith('gemini-2.5-flash-lite') &&
+    name.includes('-thinking-')
+  ) {
+    return 'gemini-2.5-flash-lite-thinking-*'
+  }
+  if (name.startsWith('gemini-2.5-flash') && name.includes('-thinking-')) {
+    return 'gemini-2.5-flash-thinking-*'
+  }
+  if (name.startsWith('gemini-2.5-pro') && name.includes('-thinking-')) {
+    return 'gemini-2.5-pro-thinking-*'
+  }
+  if (name.startsWith('gpt-4-gizmo')) {
+    return 'gpt-4-gizmo-*'
+  }
+  if (name.startsWith('gpt-4o-gizmo')) {
+    return 'gpt-4o-gizmo-*'
+  }
+  return name
+}
+
+function splitCommaFields(value: string | undefined): string[] {
+  return (value || '')
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean)
+}
+
+function valuesEqual(a: ImportSettingValue, b: ImportSettingValue): boolean {
+  if (typeof a === 'number' || typeof b === 'number') {
+    return Number(a) === Number(b)
+  }
+  return a === b
+}
+
+function formatConflictValue(value: ImportSettingValue): string {
+  return typeof value === 'number' ? String(value) : value
 }
 
 function parseChannelExportPayload(text: string): ChannelExportPayload {

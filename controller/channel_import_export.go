@@ -21,14 +21,30 @@ import (
 )
 
 const channelExportVersion = 1
+const channelImportConflictUseJSON = "json"
+
+const (
+	channelImportOptionGroupRatio           = "GroupRatio"
+	channelImportOptionUserUsableGroups     = "UserUsableGroups"
+	channelImportOptionModelPrice           = "ModelPrice"
+	channelImportOptionModelRatio           = "ModelRatio"
+	channelImportOptionCompletionRatio      = "CompletionRatio"
+	channelImportOptionCacheRatio           = "CacheRatio"
+	channelImportOptionCreateCacheRatio     = "CreateCacheRatio"
+	channelImportOptionImageRatio           = "ImageRatio"
+	channelImportOptionAudioCompletionRatio = "AudioCompletionRatio"
+)
 
 type channelExportFile struct {
-	Version      int                        `json:"version"`
-	ExportedAt   int64                      `json:"exported_at"`
-	Channels     []channelExportItem        `json:"channels"`
-	Groups       *channelExportGroups       `json:"groups,omitempty"`
-	ModelPricing *channelExportModelPricing `json:"model_pricing,omitempty"`
+	Version            int                             `json:"version"`
+	ExportedAt         int64                           `json:"exported_at"`
+	Channels           []channelExportItem             `json:"channels"`
+	Groups             *channelExportGroups            `json:"groups,omitempty"`
+	ModelPricing       *channelExportModelPricing      `json:"model_pricing,omitempty"`
+	ConflictResolution channelImportConflictResolution `json:"conflict_resolution,omitempty"`
 }
+
+type channelImportConflictResolution map[string]map[string]string
 
 type channelExportGroups struct {
 	GroupRatio       map[string]float64 `json:"group_ratio,omitempty"`
@@ -476,6 +492,7 @@ func importChannelRelatedSettings(payload channelExportFile) (channelRelatedImpo
 		groupRatio, imported := mergeMissingFloatSettings(
 			ratio_setting.GetGroupRatioCopy(),
 			filterFloatSettingsByAllowed(payload.Groups.GroupRatio, selectedGroupKeys),
+			payload.ConflictResolution[channelImportOptionGroupRatio],
 		)
 		stats.ImportedGroups = imported
 		if imported > 0 {
@@ -483,12 +500,13 @@ func importChannelRelatedSettings(payload channelExportFile) (channelRelatedImpo
 			if err != nil {
 				return stats, err
 			}
-			updates["GroupRatio"] = string(groupRatioJSON)
+			updates[channelImportOptionGroupRatio] = string(groupRatioJSON)
 		}
 
 		userUsableGroups, imported := mergeMissingStringSettings(
 			setting.GetUserUsableGroupsCopy(),
 			filterStringSettingsByAllowed(payload.Groups.UserUsableGroups, selectedGroupKeys),
+			payload.ConflictResolution[channelImportOptionUserUsableGroups],
 		)
 		stats.ImportedUserUsableGroups = imported
 		if imported > 0 {
@@ -496,7 +514,7 @@ func importChannelRelatedSettings(payload channelExportFile) (channelRelatedImpo
 			if err != nil {
 				return stats, err
 			}
-			updates["UserUsableGroups"] = string(userUsableGroupsJSON)
+			updates[channelImportOptionUserUsableGroups] = string(userUsableGroupsJSON)
 		}
 	}
 
@@ -504,6 +522,7 @@ func importChannelRelatedSettings(payload channelExportFile) (channelRelatedImpo
 		modelPrice, imported := mergeMissingFloatSettings(
 			ratio_setting.GetModelPriceCopy(),
 			filterFloatSettingsByAllowed(payload.ModelPricing.ModelPrice, selectedModelKeys),
+			payload.ConflictResolution[channelImportOptionModelPrice],
 		)
 		stats.ImportedModelPrices = imported
 		if imported > 0 {
@@ -511,12 +530,13 @@ func importChannelRelatedSettings(payload channelExportFile) (channelRelatedImpo
 			if err != nil {
 				return stats, err
 			}
-			updates["ModelPrice"] = string(modelPriceJSON)
+			updates[channelImportOptionModelPrice] = string(modelPriceJSON)
 		}
 
 		modelRatio, imported := mergeMissingFloatSettings(
 			ratio_setting.GetModelRatioCopy(),
 			filterFloatSettingsByAllowed(payload.ModelPricing.ModelRatio, selectedModelKeys),
+			payload.ConflictResolution[channelImportOptionModelRatio],
 		)
 		stats.ImportedModelRatios = imported
 		if imported > 0 {
@@ -524,12 +544,13 @@ func importChannelRelatedSettings(payload channelExportFile) (channelRelatedImpo
 			if err != nil {
 				return stats, err
 			}
-			updates["ModelRatio"] = string(modelRatioJSON)
+			updates[channelImportOptionModelRatio] = string(modelRatioJSON)
 		}
 
 		completionRatio, imported := mergeMissingFloatSettings(
 			ratio_setting.GetCompletionRatioCopy(),
 			filterFloatSettingsByAllowed(payload.ModelPricing.CompletionRatio, selectedModelKeys),
+			payload.ConflictResolution[channelImportOptionCompletionRatio],
 		)
 		stats.ImportedCompletionRatios = imported
 		if imported > 0 {
@@ -537,12 +558,13 @@ func importChannelRelatedSettings(payload channelExportFile) (channelRelatedImpo
 			if err != nil {
 				return stats, err
 			}
-			updates["CompletionRatio"] = string(completionRatioJSON)
+			updates[channelImportOptionCompletionRatio] = string(completionRatioJSON)
 		}
 
 		cacheRatio, imported := mergeMissingFloatSettings(
 			ratio_setting.GetCacheRatioCopy(),
 			filterFloatSettingsByAllowed(payload.ModelPricing.CacheRatio, selectedModelKeys),
+			payload.ConflictResolution[channelImportOptionCacheRatio],
 		)
 		stats.ImportedCacheRatios = imported
 		if imported > 0 {
@@ -550,12 +572,13 @@ func importChannelRelatedSettings(payload channelExportFile) (channelRelatedImpo
 			if err != nil {
 				return stats, err
 			}
-			updates["CacheRatio"] = string(cacheRatioJSON)
+			updates[channelImportOptionCacheRatio] = string(cacheRatioJSON)
 		}
 
 		createCacheRatio, imported := mergeMissingFloatSettings(
 			ratio_setting.GetCreateCacheRatioCopy(),
 			filterFloatSettingsByAllowed(payload.ModelPricing.CreateCacheRatio, selectedModelKeys),
+			payload.ConflictResolution[channelImportOptionCreateCacheRatio],
 		)
 		stats.ImportedCreateCacheRatios = imported
 		if imported > 0 {
@@ -563,12 +586,13 @@ func importChannelRelatedSettings(payload channelExportFile) (channelRelatedImpo
 			if err != nil {
 				return stats, err
 			}
-			updates["CreateCacheRatio"] = string(createCacheRatioJSON)
+			updates[channelImportOptionCreateCacheRatio] = string(createCacheRatioJSON)
 		}
 
 		imageRatio, imported := mergeMissingFloatSettings(
 			ratio_setting.GetImageRatioCopy(),
 			filterFloatSettingsByAllowed(payload.ModelPricing.ImageRatio, selectedModelKeys),
+			payload.ConflictResolution[channelImportOptionImageRatio],
 		)
 		stats.ImportedImageRatios = imported
 		if imported > 0 {
@@ -576,12 +600,13 @@ func importChannelRelatedSettings(payload channelExportFile) (channelRelatedImpo
 			if err != nil {
 				return stats, err
 			}
-			updates["ImageRatio"] = string(imageRatioJSON)
+			updates[channelImportOptionImageRatio] = string(imageRatioJSON)
 		}
 
 		audioCompletionRatio, imported := mergeMissingFloatSettings(
 			ratio_setting.GetAudioCompletionRatioCopy(),
 			filterFloatSettingsByAllowed(payload.ModelPricing.AudioCompletionRatio, selectedModelKeys),
+			payload.ConflictResolution[channelImportOptionAudioCompletionRatio],
 		)
 		stats.ImportedAudioCompletionRatios = imported
 		if imported > 0 {
@@ -589,7 +614,7 @@ func importChannelRelatedSettings(payload channelExportFile) (channelRelatedImpo
 			if err != nil {
 				return stats, err
 			}
-			updates["AudioCompletionRatio"] = string(audioCompletionRatioJSON)
+			updates[channelImportOptionAudioCompletionRatio] = string(audioCompletionRatioJSON)
 		}
 	}
 
@@ -646,7 +671,7 @@ func filterStringSettingsByAllowed(incoming map[string]string, allowed map[strin
 	return filtered
 }
 
-func mergeMissingFloatSettings(current map[string]float64, incoming map[string]float64) (map[string]float64, int) {
+func mergeMissingFloatSettings(current map[string]float64, incoming map[string]float64, resolution map[string]string) (map[string]float64, int) {
 	if current == nil {
 		current = make(map[string]float64)
 	}
@@ -660,7 +685,14 @@ func mergeMissingFloatSettings(current map[string]float64, incoming map[string]f
 		if key == "" {
 			continue
 		}
-		if _, exists := merged[key]; exists {
+		if currentValue, exists := merged[key]; exists {
+			if currentValue == value {
+				continue
+			}
+			if resolution[strings.TrimSpace(key)] == channelImportConflictUseJSON {
+				merged[key] = value
+				imported++
+			}
 			continue
 		}
 		merged[key] = value
@@ -669,7 +701,7 @@ func mergeMissingFloatSettings(current map[string]float64, incoming map[string]f
 	return merged, imported
 }
 
-func mergeMissingStringSettings(current map[string]string, incoming map[string]string) (map[string]string, int) {
+func mergeMissingStringSettings(current map[string]string, incoming map[string]string, resolution map[string]string) (map[string]string, int) {
 	if current == nil {
 		current = make(map[string]string)
 	}
@@ -683,7 +715,14 @@ func mergeMissingStringSettings(current map[string]string, incoming map[string]s
 		if key == "" {
 			continue
 		}
-		if _, exists := merged[key]; exists {
+		if currentValue, exists := merged[key]; exists {
+			if currentValue == value {
+				continue
+			}
+			if resolution[strings.TrimSpace(key)] == channelImportConflictUseJSON {
+				merged[key] = value
+				imported++
+			}
 			continue
 		}
 		merged[key] = value
