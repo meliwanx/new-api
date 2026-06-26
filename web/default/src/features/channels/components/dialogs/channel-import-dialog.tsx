@@ -35,7 +35,12 @@ import {
 import { Dialog } from '@/components/dialog'
 import { importChannels } from '../../api'
 import { channelsQueryKeys, getChannelTypeLabel } from '../../lib'
-import type { ChannelExportItem, ChannelExportPayload } from '../../types'
+import type {
+  ChannelExportGroups,
+  ChannelExportItem,
+  ChannelExportModelPricing,
+  ChannelExportPayload,
+} from '../../types'
 
 type ChannelImportDialogProps = {
   open: boolean
@@ -51,6 +56,10 @@ export function ChannelImportDialog({
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const [fileName, setFileName] = useState('')
   const [version, setVersion] = useState<number | undefined>()
+  const [exportedAt, setExportedAt] = useState<number | undefined>()
+  const [groups, setGroups] = useState<ChannelExportGroups | undefined>()
+  const [modelPricing, setModelPricing] =
+    useState<ChannelExportModelPricing | undefined>()
   const [channels, setChannels] = useState<ChannelExportItem[]>([])
   const [selectedIndexes, setSelectedIndexes] = useState<Set<number>>(
     () => new Set()
@@ -69,6 +78,9 @@ export function ChannelImportDialog({
   const reset = () => {
     setFileName('')
     setVersion(undefined)
+    setExportedAt(undefined)
+    setGroups(undefined)
+    setModelPricing(undefined)
     setChannels([])
     setSelectedIndexes(new Set())
     setIsImporting(false)
@@ -113,6 +125,9 @@ export function ChannelImportDialog({
       const payload = parseChannelExportPayload(text)
       setFileName(file.name)
       setVersion(payload.version)
+      setExportedAt(payload.exported_at)
+      setGroups(payload.groups)
+      setModelPricing(payload.model_pricing)
       setChannels(payload.channels)
       setSelectedIndexes(new Set(payload.channels.map((_, index) => index)))
       toast.success(
@@ -136,7 +151,10 @@ export function ChannelImportDialog({
     try {
       const response = await importChannels({
         version,
+        exported_at: exportedAt,
         channels: selectedChannels,
+        groups,
+        model_pricing: modelPricing,
       })
       if (response.success) {
         toast.success(
@@ -342,6 +360,18 @@ function parseChannelExportPayload(text: string): ChannelExportPayload {
     version:
       isRecord(parsed) && typeof parsed.version === 'number'
         ? parsed.version
+        : undefined,
+    exported_at:
+      isRecord(parsed) && typeof parsed.exported_at === 'number'
+        ? parsed.exported_at
+        : undefined,
+    groups:
+      isRecord(parsed) && isRecord(parsed.groups)
+        ? (parsed.groups as ChannelExportGroups)
+        : undefined,
+    model_pricing:
+      isRecord(parsed) && isRecord(parsed.model_pricing)
+        ? (parsed.model_pricing as ChannelExportModelPricing)
         : undefined,
     channels,
   }

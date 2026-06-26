@@ -172,6 +172,21 @@ export interface CopyChannelResponse {
 
 export type ChannelExportFormat = 'json' | 'csv'
 
+export interface ChannelExportGroups {
+  group_ratio?: Record<string, number>
+  user_usable_groups?: Record<string, string>
+}
+
+export interface ChannelExportModelPricing {
+  model_price?: Record<string, number>
+  model_ratio?: Record<string, number>
+  completion_ratio?: Record<string, number>
+  cache_ratio?: Record<string, number>
+  create_cache_ratio?: Record<string, number>
+  image_ratio?: Record<string, number>
+  audio_completion_ratio?: Record<string, number>
+}
+
 export type ChannelExportItem = Partial<
   Pick<
     Channel,
@@ -199,6 +214,8 @@ export interface ChannelExportPayload {
   version?: number
   exported_at?: number
   channels: ChannelExportItem[]
+  groups?: ChannelExportGroups
+  model_pricing?: ChannelExportModelPricing
 }
 
 export interface ImportChannelsResponse {
@@ -206,6 +223,15 @@ export interface ImportChannelsResponse {
   message?: string
   data?: {
     imported: number
+    imported_groups?: number
+    imported_user_usable_groups?: number
+    imported_model_prices?: number
+    imported_model_ratios?: number
+    imported_completion_ratios?: number
+    imported_cache_ratios?: number
+    imported_create_cache_ratios?: number
+    imported_image_ratios?: number
+    imported_audio_completion_ratios?: number
   }
 }
 
