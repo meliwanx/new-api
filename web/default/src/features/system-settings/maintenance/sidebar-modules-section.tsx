@@ -158,6 +158,10 @@ export function SidebarModulesSection({
         title: t('Invoices'),
         description: t('Process customer invoice requests.'),
       },
+      affiliate_withdrawals: {
+        title: t('Affiliate Withdrawals'),
+        description: t('Process affiliate commission withdrawal requests.'),
+      },
     },
   }
   const formDefaults = useMemo(() => config, [config])

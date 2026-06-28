@@ -17,15 +17,18 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { useCallback, useEffect, useState } from 'react'
+import { Wallet } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { getSelf } from '@/lib/api'
+import { Button } from '@/components/ui/button'
 import { SectionPageLayout } from '@/components/layout'
 import { AffiliateRewardsCard } from '@/features/wallet/components/affiliate-rewards-card'
-import { MultiLevelAffiliateCard } from '@/features/wallet/components/multi-level-affiliate-card'
 import { TransferDialog } from '@/features/wallet/components/dialogs/transfer-dialog'
+import { MultiLevelAffiliateCard } from '@/features/wallet/components/multi-level-affiliate-card'
 import { useAffiliate, useTopupInfo } from '@/features/wallet/hooks'
 import type { UserWalletData } from '@/features/wallet/types'
 import { InviteesCard } from './components/invitees-card'
+import { WithdrawDialog } from './components/withdraw-dialog'
 import { useInvitees } from './hooks/use-invitees'
 
 export function Affiliate() {
@@ -33,6 +36,7 @@ export function Affiliate() {
   const [user, setUser] = useState<UserWalletData | null>(null)
   const [userLoading, setUserLoading] = useState(true)
   const [transferDialogOpen, setTransferDialogOpen] = useState(false)
+  const [withdrawDialogOpen, setWithdrawDialogOpen] = useState(false)
 
   const { topupInfo } = useTopupInfo()
   const {
@@ -84,6 +88,17 @@ export function Affiliate() {
     <>
       <SectionPageLayout>
         <SectionPageLayout.Title>{t('Affiliate')}</SectionPageLayout.Title>
+        <SectionPageLayout.Actions>
+          <Button
+            size='sm'
+            className='gap-2'
+            onClick={() => setWithdrawDialogOpen(true)}
+            disabled={userLoading}
+          >
+            <Wallet className='size-4' />
+            {t('Withdraw')}
+          </Button>
+        </SectionPageLayout.Actions>
         <SectionPageLayout.Content>
           <div className='mx-auto flex w-full max-w-7xl flex-col gap-4 sm:gap-5'>
             <AffiliateRewardsCard
@@ -119,6 +134,12 @@ export function Affiliate() {
         onConfirm={handleTransfer}
         availableQuota={user?.aff_quota ?? 0}
         transferring={transferring}
+      />
+      <WithdrawDialog
+        open={withdrawDialogOpen}
+        onOpenChange={setWithdrawDialogOpen}
+        availableQuota={user?.aff_quota ?? 0}
+        onSubmitted={fetchUser}
       />
     </>
   )

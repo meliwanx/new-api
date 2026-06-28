@@ -82,6 +82,7 @@ export const SIDEBAR_MODULES_DEFAULT: SidebarModulesAdminConfig = {
     setting: true,
     subscription: true,
     invoice: true,
+    affiliate_withdrawals: true,
   },
 }
 

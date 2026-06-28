@@ -171,6 +171,11 @@ export function useSidebarData(): SidebarData {
             icon: FileCheck2,
           },
           {
+            title: t('Affiliate Withdrawals'),
+            url: '/affiliate-withdrawals',
+            icon: Wallet,
+          },
+          {
             title: t('System Settings'),
             url: '/system-settings/site',
             activeUrls: ['/system-settings'],

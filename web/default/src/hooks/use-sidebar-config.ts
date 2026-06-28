@@ -66,6 +66,7 @@ const DEFAULT_SIDEBAR_MODULES: SidebarModulesAdminConfig = {
     setting: true,
     subscription: true,
     invoice: true,
+    affiliate_withdrawals: true,
   },
 }
 
@@ -121,6 +122,10 @@ const URL_TO_CONFIG_MAP: Record<string, { section: string; module: string }> = {
   '/supplier-card-management': { section: 'admin', module: 'supplier_cards' },
   '/subscriptions': { section: 'admin', module: 'subscription' },
   '/invoices': { section: 'admin', module: 'invoice' },
+  '/affiliate-withdrawals': {
+    section: 'admin',
+    module: 'affiliate_withdrawals',
+  },
   '/system-settings': { section: 'admin', module: 'setting' },
   '/system-settings/site': { section: 'admin', module: 'setting' },
 }

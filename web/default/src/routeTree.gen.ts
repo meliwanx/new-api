@@ -54,6 +54,7 @@ import { Route as AuthenticatedInvoicesIndexRouteImport } from './routes/_authen
 import { Route as AuthenticatedDashboardIndexRouteImport } from './routes/_authenticated/dashboard/index'
 import { Route as AuthenticatedChannelsIndexRouteImport } from './routes/_authenticated/channels/index'
 import { Route as AuthenticatedAffiliateIndexRouteImport } from './routes/_authenticated/affiliate/index'
+import { Route as AuthenticatedAffiliateWithdrawalsIndexRouteImport } from './routes/_authenticated/affiliate-withdrawals/index'
 import { Route as AuthenticatedWalletOrdersRouteImport } from './routes/_authenticated/wallet/orders'
 import { Route as AuthenticatedUsageLogsSectionRouteImport } from './routes/_authenticated/usage-logs/$section'
 import { Route as AuthenticatedModelsSectionRouteImport } from './routes/_authenticated/models/$section'
@@ -314,6 +315,12 @@ const AuthenticatedAffiliateIndexRoute =
     path: '/affiliate/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedAffiliateWithdrawalsIndexRoute =
+  AuthenticatedAffiliateWithdrawalsIndexRouteImport.update({
+    id: '/affiliate-withdrawals/',
+    path: '/affiliate-withdrawals/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedWalletOrdersRoute =
   AuthenticatedWalletOrdersRouteImport.update({
     id: '/wallet/orders',
@@ -473,6 +480,7 @@ export interface FileRoutesByFullPath {
   '/models/$section': typeof AuthenticatedModelsSectionRoute
   '/usage-logs/$section': typeof AuthenticatedUsageLogsSectionRoute
   '/wallet/orders': typeof AuthenticatedWalletOrdersRoute
+  '/affiliate-withdrawals/': typeof AuthenticatedAffiliateWithdrawalsIndexRoute
   '/affiliate/': typeof AuthenticatedAffiliateIndexRoute
   '/channels/': typeof AuthenticatedChannelsIndexRoute
   '/dashboard/': typeof AuthenticatedDashboardIndexRoute
@@ -538,6 +546,7 @@ export interface FileRoutesByTo {
   '/models/$section': typeof AuthenticatedModelsSectionRoute
   '/usage-logs/$section': typeof AuthenticatedUsageLogsSectionRoute
   '/wallet/orders': typeof AuthenticatedWalletOrdersRoute
+  '/affiliate-withdrawals': typeof AuthenticatedAffiliateWithdrawalsIndexRoute
   '/affiliate': typeof AuthenticatedAffiliateIndexRoute
   '/channels': typeof AuthenticatedChannelsIndexRoute
   '/dashboard': typeof AuthenticatedDashboardIndexRoute
@@ -607,6 +616,7 @@ export interface FileRoutesById {
   '/_authenticated/models/$section': typeof AuthenticatedModelsSectionRoute
   '/_authenticated/usage-logs/$section': typeof AuthenticatedUsageLogsSectionRoute
   '/_authenticated/wallet/orders': typeof AuthenticatedWalletOrdersRoute
+  '/_authenticated/affiliate-withdrawals/': typeof AuthenticatedAffiliateWithdrawalsIndexRoute
   '/_authenticated/affiliate/': typeof AuthenticatedAffiliateIndexRoute
   '/_authenticated/channels/': typeof AuthenticatedChannelsIndexRoute
   '/_authenticated/dashboard/': typeof AuthenticatedDashboardIndexRoute
@@ -675,6 +685,7 @@ export interface FileRouteTypes {
     | '/models/$section'
     | '/usage-logs/$section'
     | '/wallet/orders'
+    | '/affiliate-withdrawals/'
     | '/affiliate/'
     | '/channels/'
     | '/dashboard/'
@@ -740,6 +751,7 @@ export interface FileRouteTypes {
     | '/models/$section'
     | '/usage-logs/$section'
     | '/wallet/orders'
+    | '/affiliate-withdrawals'
     | '/affiliate'
     | '/channels'
     | '/dashboard'
@@ -808,6 +820,7 @@ export interface FileRouteTypes {
     | '/_authenticated/models/$section'
     | '/_authenticated/usage-logs/$section'
     | '/_authenticated/wallet/orders'
+    | '/_authenticated/affiliate-withdrawals/'
     | '/_authenticated/affiliate/'
     | '/_authenticated/channels/'
     | '/_authenticated/dashboard/'
@@ -1181,6 +1194,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAffiliateIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/affiliate-withdrawals/': {
+      id: '/_authenticated/affiliate-withdrawals/'
+      path: '/affiliate-withdrawals'
+      fullPath: '/affiliate-withdrawals/'
+      preLoaderRoute: typeof AuthenticatedAffiliateWithdrawalsIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/wallet/orders': {
       id: '/_authenticated/wallet/orders'
       path: '/wallet/orders'
@@ -1423,6 +1443,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedModelsSectionRoute: typeof AuthenticatedModelsSectionRoute
   AuthenticatedUsageLogsSectionRoute: typeof AuthenticatedUsageLogsSectionRoute
   AuthenticatedWalletOrdersRoute: typeof AuthenticatedWalletOrdersRoute
+  AuthenticatedAffiliateWithdrawalsIndexRoute: typeof AuthenticatedAffiliateWithdrawalsIndexRoute
   AuthenticatedAffiliateIndexRoute: typeof AuthenticatedAffiliateIndexRoute
   AuthenticatedChannelsIndexRoute: typeof AuthenticatedChannelsIndexRoute
   AuthenticatedDashboardIndexRoute: typeof AuthenticatedDashboardIndexRoute
@@ -1450,6 +1471,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedModelsSectionRoute: AuthenticatedModelsSectionRoute,
   AuthenticatedUsageLogsSectionRoute: AuthenticatedUsageLogsSectionRoute,
   AuthenticatedWalletOrdersRoute: AuthenticatedWalletOrdersRoute,
+  AuthenticatedAffiliateWithdrawalsIndexRoute:
+    AuthenticatedAffiliateWithdrawalsIndexRoute,
   AuthenticatedAffiliateIndexRoute: AuthenticatedAffiliateIndexRoute,
   AuthenticatedChannelsIndexRoute: AuthenticatedChannelsIndexRoute,
   AuthenticatedDashboardIndexRoute: AuthenticatedDashboardIndexRoute,
