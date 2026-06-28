@@ -23,9 +23,8 @@ import { getSelf } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { SectionPageLayout } from '@/components/layout'
 import { AffiliateRewardsCard } from '@/features/wallet/components/affiliate-rewards-card'
-import { TransferDialog } from '@/features/wallet/components/dialogs/transfer-dialog'
 import { MultiLevelAffiliateCard } from '@/features/wallet/components/multi-level-affiliate-card'
-import { useAffiliate, useTopupInfo } from '@/features/wallet/hooks'
+import { useAffiliate } from '@/features/wallet/hooks'
 import type { UserWalletData } from '@/features/wallet/types'
 import { InviteesCard } from './components/invitees-card'
 import { WithdrawDialog } from './components/withdraw-dialog'
@@ -35,17 +34,9 @@ export function Affiliate() {
   const { t } = useTranslation()
   const [user, setUser] = useState<UserWalletData | null>(null)
   const [userLoading, setUserLoading] = useState(true)
-  const [transferDialogOpen, setTransferDialogOpen] = useState(false)
   const [withdrawDialogOpen, setWithdrawDialogOpen] = useState(false)
 
-  const { topupInfo } = useTopupInfo()
-  const {
-    affiliateLink,
-    summary,
-    loading: affiliateLoading,
-    transferQuota,
-    transferring,
-  } = useAffiliate()
+  const { affiliateLink, summary, loading: affiliateLoading } = useAffiliate()
   const {
     items,
     total,
@@ -53,7 +44,6 @@ export function Affiliate() {
     totalPages,
     loading: inviteesLoading,
     setPage,
-    refetch: refetchInvitees,
   } = useInvitees()
 
   const fetchUser = useCallback(async () => {
@@ -75,15 +65,6 @@ export function Affiliate() {
     fetchUser()
   }, [fetchUser])
 
-  const handleTransfer = async (amount: number) => {
-    const success = await transferQuota(amount)
-    if (success) {
-      await fetchUser()
-      await refetchInvitees()
-    }
-    return success
-  }
-
   return (
     <>
       <SectionPageLayout>
@@ -104,10 +85,6 @@ export function Affiliate() {
             <AffiliateRewardsCard
               user={user}
               affiliateLink={affiliateLink}
-              onTransfer={() => setTransferDialogOpen(true)}
-              complianceConfirmed={
-                topupInfo?.payment_compliance_confirmed !== false
-              }
               loading={affiliateLoading || userLoading}
             />
 
@@ -128,13 +105,6 @@ export function Affiliate() {
         </SectionPageLayout.Content>
       </SectionPageLayout>
 
-      <TransferDialog
-        open={transferDialogOpen}
-        onOpenChange={setTransferDialogOpen}
-        onConfirm={handleTransfer}
-        availableQuota={user?.aff_quota ?? 0}
-        transferring={transferring}
-      />
       <WithdrawDialog
         open={withdrawDialogOpen}
         onOpenChange={setWithdrawDialogOpen}

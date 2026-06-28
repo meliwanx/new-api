@@ -17,15 +17,8 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { useState, useEffect, useCallback } from 'react'
-import i18next from 'i18next'
-import { toast } from 'sonner'
-import { getSelf } from '@/lib/api'
 import { useCopyToClipboard } from '@/hooks/use-copy-to-clipboard'
-import {
-  getAffiliateCode,
-  getAffiliateSummary,
-  transferAffiliateQuota,
-} from '../api'
+import { getAffiliateCode, getAffiliateSummary } from '../api'
 import { generateAffiliateLink } from '../lib'
 import type { AffiliateSummary } from '../types'
 
@@ -38,7 +31,6 @@ export function useAffiliate() {
   const [affiliateLink, setAffiliateLink] = useState<string>('')
   const [summary, setSummary] = useState<AffiliateSummary | null>(null)
   const [loading, setLoading] = useState(true)
-  const [transferring, setTransferring] = useState(false)
   const { copyToClipboard } = useCopyToClipboard()
 
   // Fetch affiliate code
@@ -78,29 +70,6 @@ export function useAffiliate() {
     copyToClipboard(affiliateLink)
   }, [affiliateLink, copyToClipboard])
 
-  // Transfer affiliate quota to balance
-  const transferQuota = useCallback(async (quota: number): Promise<boolean> => {
-    try {
-      setTransferring(true)
-      const response = await transferAffiliateQuota({ quota })
-
-      if (response.success) {
-        toast.success(response.message || i18next.t('Transfer successful'))
-        await getSelf()
-        await fetchAffiliateSummary()
-        return true
-      }
-
-      toast.error(response.message || i18next.t('Transfer failed'))
-      return false
-    } catch (_error) {
-      toast.error(i18next.t('Transfer failed'))
-      return false
-    } finally {
-      setTransferring(false)
-    }
-  }, [fetchAffiliateSummary])
-
   useEffect(() => {
     fetchAffiliateCode()
     fetchAffiliateSummary()
@@ -111,9 +80,7 @@ export function useAffiliate() {
     affiliateLink,
     summary,
     loading,
-    transferring,
     copyAffiliateLink,
-    transferQuota,
     refetch: fetchAffiliateCode,
   }
 }

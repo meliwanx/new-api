@@ -42,7 +42,6 @@ export type PaymentResponse = ApiResponse<Record<string, unknown>> & {
 }
 export type StripePaymentResponse = ApiResponse<{ pay_link: string }>
 export type AffiliateCodeResponse = ApiResponse<string>
-export type AffiliateTransferResponse = ApiResponse
 export type CreemPaymentResponse = ApiResponse<{ checkout_url: string }>
 export type WaffoPaymentResponse = ApiResponse<
   { payment_url?: string } | string
@@ -212,14 +211,6 @@ export interface WaffoPancakePaymentRequest {
 export interface AmountRequest {
   /** Topup amount to calculate */
   amount: number
-}
-
-/**
- * Affiliate quota transfer request
- */
-export interface AffiliateTransferRequest {
-  /** Quota amount to transfer */
-  quota: number
 }
 
 /**
